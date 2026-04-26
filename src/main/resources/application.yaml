@@ -1,3 +1,8 @@
 spring:
   application:
     name: FinanceServer
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT_EXTERNAL}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
