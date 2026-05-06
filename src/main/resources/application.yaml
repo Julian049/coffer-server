@@ -8,3 +8,6 @@ spring:
     driver-class-name: org.postgresql.Driver
   flyway:
     enabled: true
+server:
+  address: 0.0.0.0
+  port: 8080
