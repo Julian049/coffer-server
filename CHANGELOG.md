@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Multi-stage `Dockerfile` (Temurin 21 JRE, non-root) and `.dockerignore`
+- GitHub Actions CI: `./mvnw -B verify` with JUnit and JaCoCo reports as artifacts, plus OWASP Dependency-Check (fails on CVSS >= 7)
+- Render Blueprint (`render.yaml`) for `coffer-server-staging` (`develop`) and `coffer-server` (`main`) with `/actuator/health` checks
+- Dependabot for Maven, GitHub Actions and Docker
+- Spring profiles `local` (default), `staging` and `prod`
+
 ### Changed
+
+- Database connection configured with a single `DB_URL`; Hikari pool size from `DB_POOL_SIZE` (default 4)
+- Hibernate `ddl-auto=validate`, Flyway `clean-disabled`, virtual threads enabled; HTTP port from `PORT` (Render)
+- Context test runs against PostgreSQL 16 with Testcontainers, so it no longer needs a local database
+- Version set to `0.2.0-SNAPSHOT`
 
 - `CLAUDE.md`: sibling repositories referenced by relative path (`../docs/`) instead of an absolute WSL path
 
