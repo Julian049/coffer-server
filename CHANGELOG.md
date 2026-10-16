@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Multi-stage `Dockerfile` (Temurin 21 JRE, non-root) and `.dockerignore`
-- GitHub Actions CI: `./mvnw -B verify` with JUnit and JaCoCo reports as artifacts, plus a separate OWASP Dependency-Check workflow (fails on CVSS >= 7; runs when `pom.xml` changes, weekly and on demand)
+- GitHub Actions CI: `./mvnw -B verify` with JUnit and JaCoCo reports as artifacts, plus a separate OWASP Dependency-Check workflow (fails on CVSS >= 7; weekly and on demand, 60 min limit)
 - Render Blueprint (`render.yaml`) for `coffer-server-staging` (`develop`) and `coffer-server` (`main`) with `/actuator/health` checks
 - Dependabot for Maven, GitHub Actions and Docker
 - Spring profiles `local` (default), `staging` and `prod`
