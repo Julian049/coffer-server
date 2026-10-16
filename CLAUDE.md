@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Product and documentation
 
-This repository is the cloud service of **Coffer** (formerly "Finance App"), called *Coffer Server*: a single Spring Boot service (modular monolith) that the offline-first Android app uses for authentication and backup/sync. GitHub: `Julian049/coffer-server`. Sibling repositories: `coffer-app` (Android) and `coffer-docs` (documentation). Locally they live side by side under `/home/julian/finance-app/` (`finance-server/`, `finance-app/`, `docs/`), so the docs are at `../docs/`.
+This repository is the cloud service of **Coffer** (formerly "Finance App"), called *Coffer Server*: a single Spring Boot service (modular monolith) that the offline-first Android app uses for authentication and backup/sync. GitHub: `Julian049/coffer-server`. Sibling repositories: `coffer-app` (Android) and `coffer-docs` (documentation). Locally they live side by side in the same parent folder (`finance-server/`, `finance-app/`, `docs/`), so the docs are at `../docs/`.
 
 **The documentation is the source of truth — read it before changing anything structural:**
 
