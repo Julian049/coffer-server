@@ -24,14 +24,21 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
-      - name: Cache NVD database
-        uses: actions/cache@v4
+      - name: Restore NVD database
+        uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: nvd-${{ github.run_id }}
           restore-keys: nvd-
       # Fails on CVSS >= 7
       - run: ./mvnw -B -Powasp dependency-check:check -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+      # Saved even when vulnerabilities fail the build, so the next run only downloads the delta
+      - name: Save NVD database
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ github.run_id }}
       - name: Upload Dependency-Check report
         if: always()
         uses: actions/upload-artifact@v4
