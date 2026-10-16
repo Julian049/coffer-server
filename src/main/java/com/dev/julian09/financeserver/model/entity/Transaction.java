@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -25,7 +26,7 @@ public class Transaction {
     private String title;
 
     @Column(nullable = false)
-    private double value;
+    private BigDecimal value;
 
     @Column(nullable = false)
     private boolean type;

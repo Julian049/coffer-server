@@ -1,0 +1,41 @@
+# Render Blueprint (ADR-0009). Secrets use sync: false: Render asks for them when the Blueprint is applied
+services:
+  - type: web
+    name: coffer-server-staging
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: develop
+    autoDeploy: true
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: staging
+      - key: DB_POOL_SIZE
+        value: "4"
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+  - type: web
+    name: coffer-server
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_POOL_SIZE
+        value: "4"
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false

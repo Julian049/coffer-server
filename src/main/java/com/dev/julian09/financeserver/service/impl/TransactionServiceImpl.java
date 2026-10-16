@@ -26,7 +26,7 @@ public class TransactionServiceImpl implements TransactionService {
         Transaction entity = mapper.transactionDTOToTransaction(dto);
         entity.setSynced(true);
 
-        if (entity.getValue() < 0) {
+        if (entity.getValue().signum() < 0) {
             entity.setType(false);
         } else {
             entity.setType(true);
