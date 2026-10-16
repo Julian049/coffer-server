@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hibernate `ddl-auto=validate`, Flyway `clean-disabled`, virtual threads enabled; HTTP port from `PORT` (Render)
 - Context test runs against PostgreSQL 16 with Testcontainers, so it no longer needs a local database
 - Version set to `0.2.0-SNAPSHOT`
+- Spring Boot 4.0.6 -> 4.0.8 to pick up fixed Jackson, PostgreSQL JDBC, Tomcat and Spring Framework versions (CVSS >= 7 reported by Dependency-Check)
 
 - `CLAUDE.md`: sibling repositories referenced by relative path (`../docs/`) instead of an absolute WSL path
 
