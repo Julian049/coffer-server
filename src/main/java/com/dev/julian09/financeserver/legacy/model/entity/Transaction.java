@@ -1,4 +1,4 @@
-package com.dev.julian09.financeserver.model.entity;
+package com.dev.julian09.financeserver.legacy.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

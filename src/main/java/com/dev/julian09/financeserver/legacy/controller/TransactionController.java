@@ -1,7 +1,7 @@
-package com.dev.julian09.financeserver.controller;
+package com.dev.julian09.financeserver.legacy.controller;
 
-import com.dev.julian09.financeserver.model.dto.TransactionDTO;
-import com.dev.julian09.financeserver.service.TransactionService;
+import com.dev.julian09.financeserver.legacy.model.dto.TransactionDTO;
+import com.dev.julian09.financeserver.legacy.service.TransactionService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;

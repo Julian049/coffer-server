@@ -1,7 +1,7 @@
-package com.dev.julian09.financeserver.mapper;
+package com.dev.julian09.financeserver.legacy.mapper;
 
-import com.dev.julian09.financeserver.model.dto.TransactionDTO;
-import com.dev.julian09.financeserver.model.entity.Transaction;
+import com.dev.julian09.financeserver.legacy.model.dto.TransactionDTO;
+import com.dev.julian09.financeserver.legacy.model.entity.Transaction;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

@@ -40,7 +40,7 @@ Services are created in Sprint 1 from a `render.yaml` blueprint. Env vars: `SPRI
 
 ## Current state
 
-The code below is still the **MVP (`v0.1.0`)**. Sprint 1 (`v0.2.0`) restructures it into the packages `config`/`shared`/`identity`/`ledger`/`sync`, adds Dockerfile, CI, ProblemDetail errors and springdoc; Sprint 3 replaces the MVP `/transactions` API with `/api/v1/sync/*`. When the code changes, update this file accordingly.
+Sprint 1 (`v0.2.0`) in progress: delivery (Dockerfile, CI, Render) and the module skeleton are in place. `identity`, `ledger` and `sync` are still empty packages (filled in Sprints 2–3); the only API is the MVP `/transactions`, now under `legacy`, which Sprint 3 replaces with `/api/v1/sync/*`. When the code changes, update this file accordingly.
 
 ## Commands
 
@@ -56,7 +56,21 @@ Configuration lives in `src/main/resources/application.yaml` plus one file per p
 
 Delivery: `Dockerfile` (multi-stage, Temurin 21 JRE), `.github/workflows/ci.yml` (`./mvnw -B verify` with JaCoCo), `.github/workflows/dependency-check.yml` (OWASP, `./mvnw -Powasp dependency-check:check`, only when `pom.xml` changes, weekly and on demand; needs the `NVD_API_KEY` secret), `render.yaml` (Render Blueprint: `coffer-server-staging` from `develop`, `coffer-server` from `main`) and Dependabot.
 
-## Architecture (MVP)
+## Architecture
+
+Modular monolith (detailed-design §6.2.1), base package `com.dev.julian09.financeserver`:
+
+- `config/`: `ClockConfig` (inject `Clock`, never call `now()` directly), `JacksonConfig` (`BigDecimal` serialized as a JSON string; dates ISO-8601), `OpenApiConfig` (springdoc at `/v3/api-docs`, version from `build-info`).
+- `shared/error/`: `ErrorCode` (`FIN-*` codes of the contract, each with HTTP status, `type` URI and title), `ApiException(ErrorCode, detail)` and `ProblemDetailsAdvice`, which turns **every** error into `application/problem+json` (RFC 9457) with a `code` member: domain errors keep their code; bean validation adds `errors[{field, message}]`; Spring's own errors (bad JSON, unknown route…) get a code from `ErrorCode.forStatus`; `DataIntegrityViolationException` → `FIN-CONFLICT`; anything else → `FIN-INTERNAL` without details (RNF-07). To fail from a service, throw `ApiException`.
+- `identity/`, `ledger/`, `sync/`: empty until Sprints 2–3.
+- `legacy/`: MVP code, described below.
+
+Rules enforced by `ArchitectureTest` (ArchUnit): `ledger` does not depend on `sync`/`identity`; `identity` does not depend on `ledger`/`sync`; `shared` depends on no module; new modules never depend on `legacy`; `@RestController`s do not use Spring Data repositories; no `double`/`float` fields in `ledger` (ADR-0004).
+
+Tests: `FinanceServerApplicationTests` (Testcontainers) also validates `/actuator/health` against `src/test/resources/contract/openapi.yml` with swagger-request-validator. That file is a **copy** of `../docs/04-api/openapi.yml`; refresh it when the contract changes. Actuator exposes `health` and `info` (`build.version` = `pom.xml` version).
+
+## Legacy MVP (`legacy/`)
+
 
 Layered: `controller` → `service` (interface + `service/impl`) → `repository` (Spring Data JPA), with `mapper` (MapStruct) converting between `model/dto` and `model/entity`.
 
@@ -66,7 +80,7 @@ Layered: `controller` → `service` (interface + `service/impl`) → `repository
 
 **Schema changes** go through Flyway only: add a new `V{n}__description.sql` in `src/main/resources/db/migration/`; never edit applied migrations. V2 rewrote the V1 schema (renamed `device_id` → `local_id`, moved PK to `server_id`), so read both to understand the current table. Keep the `Transaction` entity's `@Column` names in sync with the migrations.
 
-**Error handling.** Domain exceptions extend `exception/core/ApiException` (carrying an `ErrorCode` enum and an `HttpStatus`); `GlobalExceptionHandler` turns them into a JSON body `{timestamp, status, error, message}`. Codes: `ERR-300` invalid values (400), `ERR-400` duplicate record (409), `ERR-500` internal (500). An `ApiException` without a dedicated handler is reported as an internal error, so a new exception type needs its own `@ExceptionHandler` to keep its status. These exceptions are not thrown anywhere in the service layer yet (e.g. a duplicate `localId` currently surfaces as a generic 500).
+**Money.** `value` is `BigDecimal` (column `NUMERIC(19,4)`) and is serialized as a JSON string by `JacksonConfig`; the MVP app (Gson, `Double`) still parses it. A duplicate `localId` now returns 409 `FIN-CONFLICT`.
 
 **Annotation processing.** Lombok and the MapStruct processor are configured explicitly in `maven-compiler-plugin` (`annotationProcessorPaths`); the test-compile execution only includes Lombok. Add any new annotation processor there.
 

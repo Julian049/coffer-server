@@ -14,15 +14,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Render Blueprint (`render.yaml`) for `coffer-server-staging` (`develop`) and `coffer-server` (`main`) with `/actuator/health` checks
 - Dependabot for Maven, GitHub Actions and Docker
 - Spring profiles `local` (default), `staging` and `prod`
+- Module packages `config`, `shared`, `identity`, `ledger`, `sync`; the MVP code moves to `legacy`
+- RFC 9457 errors: `ProblemDetailsAdvice`, `ApiException` and `FIN-*` error codes; every error is `application/problem+json`
+- `ClockConfig` (injectable UTC clock) and `JacksonConfig` (`BigDecimal` as JSON string, ISO-8601 dates)
+- springdoc-openapi at `/v3/api-docs`; Actuator `info` shows the `pom.xml` version (build-info)
+- Tests: `ArchitectureTest` (ArchUnit module rules, no `double`/`float` in `ledger`), `ProblemDetailsAdviceTest` and a contract test of `/actuator/health` against `openapi.yml`
+
+### Removed
+
+- `GlobalExceptionHandler` and the `ERR-*` error format, replaced by RFC 9457 problems
 
 ### Changed
 
+- A duplicate `localId` returns 409 `FIN-CONFLICT` instead of 500
+- MVP transaction amounts are serialized as JSON strings (`"28000.0000"`)
 - Database connection configured with a single `DB_URL`; Hikari pool size from `DB_POOL_SIZE` (default 4)
 - Hibernate `ddl-auto=validate`, Flyway `clean-disabled`, virtual threads enabled; HTTP port from `PORT` (Render)
 - Context test runs against PostgreSQL 16 with Testcontainers, so it no longer needs a local database
 - Version set to `0.2.0-SNAPSHOT`
 - Spring Boot 4.0.6 -> 4.0.8 to pick up fixed Jackson, PostgreSQL JDBC, Tomcat and Spring Framework versions (CVSS >= 7 reported by Dependency-Check)
-
 - `CLAUDE.md`: sibling repositories referenced by relative path (`../docs/`) instead of an absolute WSL path
 
 ## [0.1.0] - 2026-05-09
