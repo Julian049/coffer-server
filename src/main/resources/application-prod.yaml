@@ -1,8 +1,4 @@
 # Render coffer-server + Neon branch "production"; DB_URL, DB_USER, DB_PASSWORD come from Render
-management:
-  endpoint:
-    health:
-      show-details: never
 logging:
   level:
     root: WARN

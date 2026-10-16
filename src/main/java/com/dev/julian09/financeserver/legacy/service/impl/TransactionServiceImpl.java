@@ -1,10 +1,10 @@
-package com.dev.julian09.financeserver.service.impl;
+package com.dev.julian09.financeserver.legacy.service.impl;
 
-import com.dev.julian09.financeserver.mapper.TransactionMapper;
-import com.dev.julian09.financeserver.model.dto.TransactionDTO;
-import com.dev.julian09.financeserver.model.entity.Transaction;
-import com.dev.julian09.financeserver.repository.TransactionRepository;
-import com.dev.julian09.financeserver.service.TransactionService;
+import com.dev.julian09.financeserver.legacy.mapper.TransactionMapper;
+import com.dev.julian09.financeserver.legacy.model.dto.TransactionDTO;
+import com.dev.julian09.financeserver.legacy.model.entity.Transaction;
+import com.dev.julian09.financeserver.legacy.repository.TransactionRepository;
+import com.dev.julian09.financeserver.legacy.service.TransactionService;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

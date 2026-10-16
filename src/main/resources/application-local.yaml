@@ -2,7 +2,3 @@
 spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:${DB_PORT_EXTERNAL:5432}/${DB_NAME:coffer}}
-management:
-  endpoint:
-    health:
-      show-details: always

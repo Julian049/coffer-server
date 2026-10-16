@@ -1,4 +1,4 @@
-package com.dev.julian09.financeserver.model.dto;
+package com.dev.julian09.financeserver.legacy.model.dto;
 
 import lombok.Getter;
 import lombok.Setter;
