@@ -54,7 +54,7 @@ docker compose up -d                 # start PostgreSQL 16 (reads .env for DB_* 
 
 Configuration lives in `src/main/resources/application.yaml` plus one file per profile: `local` (default when no profile is set), `staging` and `prod` (`SPRING_PROFILES_ACTIVE` on Render). The datasource is a single `DB_URL` with `DB_USER`/`DB_PASSWORD` and `DB_POOL_SIZE` (default 4); the `local` profile builds a default `DB_URL` from `DB_PORT_EXTERNAL`/`DB_NAME` so the docker compose `.env` still works. Docker Compose reads `.env` automatically, but Spring does not — export the variables before `spring-boot:run`. Tests do **not** need a local database: `FinanceServerApplicationTests` imports `TestcontainersConfiguration` (PostgreSQL 16 via Testcontainers), so Docker must be running. Hibernate runs with `ddl-auto=validate`, so entities must match the Flyway schema. The HTTP port comes from `PORT` (Render) and defaults to 8080.
 
-Delivery: `Dockerfile` (multi-stage, Temurin 21 JRE), `.github/workflows/ci.yml` (`./mvnw -B verify` with JaCoCo + OWASP Dependency-Check via `./mvnw -Powasp dependency-check:check`), `render.yaml` (Render Blueprint: `coffer-server-staging` from `develop`, `coffer-server` from `main`) and Dependabot.
+Delivery: `Dockerfile` (multi-stage, Temurin 21 JRE), `.github/workflows/ci.yml` (`./mvnw -B verify` with JaCoCo), `.github/workflows/dependency-check.yml` (OWASP, `./mvnw -Powasp dependency-check:check`, only when `pom.xml` changes, weekly and on demand; needs the `NVD_API_KEY` secret), `render.yaml` (Render Blueprint: `coffer-server-staging` from `develop`, `coffer-server` from `main`) and Dependabot.
 
 ## Architecture (MVP)
 
