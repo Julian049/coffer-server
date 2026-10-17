@@ -1,0 +1,5 @@
+# Render coffer-server + Neon branch "production"; DB_URL, DB_USER, DB_PASSWORD come from Render
+logging:
+  level:
+    root: WARN
+    com.dev.julian09.financeserver: INFO

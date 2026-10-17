@@ -1,0 +1,816 @@
+openapi: 3.1.0
+info:
+  title: Coffer Server API
+  version: 1.0.0
+  summary: Autenticación, respaldo y sincronización de Coffer.
+  description: |
+    Contrato del servicio en la nube de Coffer (SRS v1.0 §7.3, ADR-0012).
+
+    La app Android es **offline-first**: toda la operación ocurre en el dispositivo y este servicio
+    solo autentica y sincroniza (push/pull) los datos del usuario (ADR-0005, ADR-0006).
+
+    Convenciones:
+    - JSON en `camelCase`. Instantes en ISO-8601 UTC (`2026-10-09T13:10:00Z`); fechas `yyyy-MM-dd`.
+    - Montos como **string decimal** con hasta 4 decimales (`"28000.0000"`) y tasas como fracción
+      con hasta 6 decimales (`"0.020000"` = 2 %), para no perder precisión (ADR-0004).
+    - Errores con `application/problem+json` (RFC 9457) y un campo `code` estable.
+    - El usuario se identifica **solo** por el JWT (`sub`); nunca se acepta `userId` en el cuerpo (RNF-17).
+    - Versionado en la ruta: los cambios incompatibles crean `/api/v2`.
+
+    Fuentes de verdad relacionadas: `docs/03-design/data-model.md` (esquema) y
+    `docs/03-design/detailed-design.md` §6.6 (interfaces).
+  contact:
+    name: Julian David Bocanegra Segura
+    url: https://github.com/Julian049
+  license:
+    name: Privado
+    identifier: LicenseRef-Proprietary
+
+servers:
+  - url: http://localhost:8080
+    description: Local (docker compose + spring-boot:run). Desde el emulador, http://10.0.2.2:8080
+  - url: https://coffer-server-staging.onrender.com
+    description: Staging (rama develop)
+  - url: https://coffer-server.onrender.com
+    description: Producción (rama main)
+
+tags:
+  - name: Auth
+    description: Registro, inicio de sesión, Google, refresh y logout (REQ-AUT-01 a 06).
+  - name: Account
+    description: Perfil del usuario autenticado.
+  - name: Sync
+    description: Protocolo push/pull con cursor y último cambio gana (REQ-SYN-01 a 05, ADR-0006).
+  - name: Ops
+    description: Salud del servicio.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Registrar un usuario con nombre de usuario y contraseña
+      description: REQ-AUT-01. Devuelve la sesión ya iniciada.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+            example:
+              displayName: Julian Bocanegra
+              email: julian@correo.com
+              username: julianb
+              password: '********'
+              deviceId: 6f1d2c9a-0c4e-4f7b-9c1e-1a2b3c4d5e6f
+      responses:
+        '201':
+          description: Usuario creado y sesión iniciada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Iniciar sesión con nombre de usuario o correo y contraseña
+      description: REQ-AUT-02. Límite de 5 intentos por minuto por IP e identificador.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Sesión iniciada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/InvalidCredentials' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/auth/google:
+    post:
+      tags: [Auth]
+      operationId: loginWithGoogle
+      summary: Registrarse o iniciar sesión con Google
+      description: |
+        REQ-AUT-03. El servidor valida el ID token (firma JWKS, `aud` = client id, `exp`,
+        `email_verified`) y vincula o crea el usuario por `sub` de Google.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleLoginRequest' }
+      responses:
+        '200':
+          description: Sesión iniciada (usuario existente o creado).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/InvalidCredentials' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refresh
+      summary: Renovar el token de acceso (refresh rotativo)
+      description: |
+        REQ-AUT-04. Cada uso emite un refresh token nuevo y revoca el anterior.
+        Si se presenta un refresh ya revocado, se revoca toda la familia (posible robo).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: Par de tokens nuevo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/SessionRevoked' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Cerrar la sesión de este dispositivo
+      description: REQ-AUT-06. Revoca el refresh token. El cliente conserva sus datos locales.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '204':
+          description: Sesión cerrada (idempotente, aunque el token ya estuviera revocado).
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/v1/me:
+    get:
+      tags: [Account]
+      operationId: getMe
+      summary: Perfil del usuario autenticado
+      responses:
+        '200':
+          description: Perfil.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/v1/sync/push:
+    post:
+      tags: [Sync]
+      operationId: pushChanges
+      summary: Enviar un lote de cambios locales
+      description: |
+        REQ-SYN-01, 02, 04. Upsert idempotente por `id` con **último cambio gana** por `updatedAt`.
+        El lote se procesa en una transacción con FK diferidas; el resultado es **por cambio**:
+
+        - `APPLIED`: se guardó (`version` = nueva versión en el servidor).
+        - `STALE`: el servidor ya tenía una versión igual o más reciente; el cliente la recibirá en el pull.
+        - `REJECTED`: inválido o de otro usuario; incluye `code` y `detail`.
+
+        Un rechazo individual **no** es un error HTTP: la respuesta es 200.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PushRequest' }
+            example:
+              deviceId: 6f1d2c9a-0c4e-4f7b-9c1e-1a2b3c4d5e6f
+              changes:
+                - entity: transaction
+                  id: 2f6a3c1e-8b7d-4e2a-9f10-5a6b7c8d9e01
+                  createdAt: '2026-10-09T13:10:00Z'
+                  updatedAt: '2026-10-09T13:10:00Z'
+                  deletedAt: null
+                  data:
+                    type: EXPENSE
+                    amount: '28000.0000'
+                    occurredAt: '2026-10-09T13:05:00Z'
+                    accountId: 0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d
+                    destinationAccountId: null
+                    categoryId: 7c8d9e0f-1a2b-4c3d-8e4f-5a6b7c8d9e0f
+                    tagId: null
+                    note: Almuerzo
+                    installments: 1
+                    principal: null
+                    interest: null
+                    fees: null
+                    installmentId: null
+                    recurringId: null
+                    paymentKind: null
+      responses:
+        '200':
+          description: Resultado por cambio.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushResponse' }
+              example:
+                results:
+                  - id: 2f6a3c1e-8b7d-4e2a-9f10-5a6b7c8d9e01
+                    status: APPLIED
+                    version: 512
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/BatchTooLarge' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/sync/pull:
+    get:
+      tags: [Sync]
+      operationId: pullChanges
+      summary: Recibir los cambios del servidor desde un cursor
+      description: |
+        REQ-SYN-01, 03, REQ-AUT-05. Devuelve, ordenados por `version`, los cambios de todas las
+        entidades del usuario con `version > since`, **incluidos los borrados** (`deletedAt` no nulo).
+        Con `since=0` se descarga todo; `remaining` permite mostrar el progreso de la descarga inicial.
+      parameters:
+        - name: since
+          in: query
+          required: true
+          description: Última versión recibida por el cliente (0 en la descarga inicial).
+          schema: { type: integer, format: int64, minimum: 0 }
+        - name: limit
+          in: query
+          required: false
+          description: Máximo de cambios por página.
+          schema: { type: integer, minimum: 1, maximum: 500, default: 500 }
+      responses:
+        '200':
+          description: Página de cambios.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PullResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /actuator/health:
+    get:
+      tags: [Ops]
+      operationId: health
+      summary: Estado del servicio
+      description: Sin detalles internos (RNF-07). Lo usan Render y el monitoreo.
+      security: []
+      responses:
+        '200':
+          description: Servicio disponible.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [UP] }
+        '503':
+          description: Servicio no disponible.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [DOWN, OUT_OF_SERVICE] }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token de acceso RS256 de 15 minutos emitido por `/auth/*` (ADR-0007).
+
+  responses:
+    ValidationError:
+      description: Cuerpo o parámetros inválidos (`FIN-VALIDATION`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ValidationProblem' }
+    InvalidCredentials:
+      description: Credenciales o token de Google inválidos (`FIN-AUTH-INVALID`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    SessionRevoked:
+      description: Refresh token vencido, revocado o reutilizado (`FIN-AUTH-REVOKED`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Falta el JWT o es inválido o vencido (`FIN-AUTH-INVALID`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Nombre de usuario o correo ya registrados (`FIN-CONFLICT`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    RateLimited:
+      description: Demasiados intentos (`FIN-RATE-LIMIT`).
+      headers:
+        Retry-After:
+          description: Segundos para reintentar.
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    BatchTooLarge:
+      description: El lote supera 200 cambios (`FIN-VALIDATION`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    InternalError:
+      description: Error no controlado (`FIN-INTERNAL`), sin detalles internos (RNF-07).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    # ------------------------------------------------------------ Tipos base
+    Uuid:
+      type: string
+      format: uuid
+    Instant:
+      type: string
+      format: date-time
+      description: Instante ISO-8601 en UTC.
+    LocalDate:
+      type: string
+      format: date
+    Amount:
+      type: string
+      pattern: '^\d{1,15}(\.\d{1,4})?$'
+      description: Monto decimal exacto, no negativo, hasta 4 decimales (NUMERIC(19,4)).
+      examples: ['28000.0000', '1200000']
+    PositiveAmount:
+      allOf:
+        - $ref: '#/components/schemas/Amount'
+      description: Monto mayor que cero (el servidor rechaza "0").
+    Rate:
+      type: string
+      pattern: '^\d{1,3}(\.\d{1,6})?$'
+      description: Tasa como fracción (0.020000 = 2 %), NUMERIC(9,6).
+      examples: ['0.020000']
+    RateType:
+      type: string
+      enum: [EA, MV]
+    DayOfMonth:
+      type: integer
+      minimum: 1
+      maximum: 31
+    DeviceId:
+      type: string
+      minLength: 8
+      maxLength: 64
+      description: Identificador de la instalación generado por la app.
+
+    # ------------------------------------------------------------ Errores (RFC 9457)
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: { type: string, format: uri, examples: ['https://finance.app/problems/auth-invalid'] }
+        title: { type: string, examples: ['Credenciales inválidas'] }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code:
+          type: string
+          enum: [FIN-VALIDATION, FIN-AUTH-INVALID, FIN-AUTH-REVOKED, FIN-CONFLICT, FIN-RATE-LIMIT, FIN-INTERNAL]
+    ValidationProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            errors:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field: { type: string, examples: ['username'] }
+                  message: { type: string, examples: ['Debe tener entre 3 y 40 caracteres'] }
+
+    # ------------------------------------------------------------ Auth
+    RegisterRequest:
+      type: object
+      required: [displayName, email, username, password, deviceId]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 255 }
+        username: { type: string, pattern: '^[a-z0-9._]{3,40}$' }
+        password: { type: string, minLength: 8, maxLength: 128, writeOnly: true }
+        deviceId: { $ref: '#/components/schemas/DeviceId' }
+    LoginRequest:
+      type: object
+      required: [identifier, password, deviceId]
+      properties:
+        identifier: { type: string, minLength: 3, maxLength: 255, description: Nombre de usuario o correo. }
+        password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
+        deviceId: { $ref: '#/components/schemas/DeviceId' }
+    GoogleLoginRequest:
+      type: object
+      required: [idToken, deviceId]
+      properties:
+        idToken: { type: string, minLength: 20, description: ID token de Google Credential Manager. }
+        deviceId: { $ref: '#/components/schemas/DeviceId' }
+    RefreshRequest:
+      type: object
+      required: [refreshToken, deviceId]
+      properties:
+        refreshToken: { type: string, minLength: 20, writeOnly: true }
+        deviceId: { $ref: '#/components/schemas/DeviceId' }
+    AuthResponse:
+      type: object
+      required: [accessToken, accessTokenExpiresAt, refreshToken, user]
+      properties:
+        accessToken: { type: string }
+        accessTokenExpiresAt: { $ref: '#/components/schemas/Instant' }
+        refreshToken: { type: string, description: 'Opaco (256 bits) y rotativo, con caducidad deslizante de 180 días.' }
+        user: { $ref: '#/components/schemas/User' }
+    User:
+      type: object
+      required: [id, username, displayName, email, currency]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        username: { type: string }
+        displayName: { type: string }
+        email: { type: string, format: email }
+        currency: { type: string, pattern: '^[A-Z]{3}$', examples: ['COP'] }
+        googleLinked: { type: boolean }
+
+    # ------------------------------------------------------------ Sync: sobres
+    EntityName:
+      type: string
+      enum: [settings, account, creditCardDetails, loanDetails, category, tag, transaction,
+             deferredPurchase, installment, recurringExpense, changeLog]
+    ChangeBase:
+      type: object
+      required: [entity, id, createdAt, updatedAt, deletedAt, data]
+      properties:
+        entity: { $ref: '#/components/schemas/EntityName' }
+        id: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { $ref: '#/components/schemas/Instant' }
+        updatedAt:
+          allOf: [{ $ref: '#/components/schemas/Instant' }]
+          description: Última modificación en el dispositivo; decide el último cambio gana.
+        deletedAt:
+          oneOf:
+            - $ref: '#/components/schemas/Instant'
+            - type: 'null'
+          description: Borrado lógico (REQ-SYN-03).
+    Change:
+      description: Un cambio de una entidad. `data` depende de `entity`.
+      oneOf:
+        - $ref: '#/components/schemas/SettingsChange'
+        - $ref: '#/components/schemas/AccountChange'
+        - $ref: '#/components/schemas/CreditCardDetailsChange'
+        - $ref: '#/components/schemas/LoanDetailsChange'
+        - $ref: '#/components/schemas/CategoryChange'
+        - $ref: '#/components/schemas/TagChange'
+        - $ref: '#/components/schemas/TransactionChange'
+        - $ref: '#/components/schemas/DeferredPurchaseChange'
+        - $ref: '#/components/schemas/InstallmentChange'
+        - $ref: '#/components/schemas/RecurringExpenseChange'
+        - $ref: '#/components/schemas/ChangeLogChange'
+      discriminator:
+        propertyName: entity
+        mapping:
+          settings: '#/components/schemas/SettingsChange'
+          account: '#/components/schemas/AccountChange'
+          creditCardDetails: '#/components/schemas/CreditCardDetailsChange'
+          loanDetails: '#/components/schemas/LoanDetailsChange'
+          category: '#/components/schemas/CategoryChange'
+          tag: '#/components/schemas/TagChange'
+          transaction: '#/components/schemas/TransactionChange'
+          deferredPurchase: '#/components/schemas/DeferredPurchaseChange'
+          installment: '#/components/schemas/InstallmentChange'
+          recurringExpense: '#/components/schemas/RecurringExpenseChange'
+          changeLog: '#/components/schemas/ChangeLogChange'
+    SettingsChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: settings }
+            data: { $ref: '#/components/schemas/SettingsData' }
+    AccountChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: account }
+            data: { $ref: '#/components/schemas/AccountData' }
+    CreditCardDetailsChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: creditCardDetails }
+            data: { $ref: '#/components/schemas/CreditCardDetailsData' }
+    LoanDetailsChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: loanDetails }
+            data: { $ref: '#/components/schemas/LoanDetailsData' }
+    CategoryChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: category }
+            data: { $ref: '#/components/schemas/CategoryData' }
+    TagChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: tag }
+            data: { $ref: '#/components/schemas/TagData' }
+    TransactionChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: transaction }
+            data: { $ref: '#/components/schemas/TransactionData' }
+    DeferredPurchaseChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: deferredPurchase }
+            data: { $ref: '#/components/schemas/DeferredPurchaseData' }
+    InstallmentChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: installment }
+            data: { $ref: '#/components/schemas/InstallmentData' }
+    RecurringExpenseChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: recurringExpense }
+            data: { $ref: '#/components/schemas/RecurringExpenseData' }
+    ChangeLogChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: changeLog }
+            data: { $ref: '#/components/schemas/ChangeLogData' }
+
+    PushRequest:
+      type: object
+      required: [deviceId, changes]
+      properties:
+        deviceId: { $ref: '#/components/schemas/DeviceId' }
+        changes:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { $ref: '#/components/schemas/Change' }
+    ChangeResult:
+      type: object
+      required: [id, status]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        status: { type: string, enum: [APPLIED, STALE, REJECTED] }
+        version: { type: integer, format: int64, description: Solo en APPLIED. }
+        code:
+          type: string
+          enum: [FIN-VALIDATION, FIN-NOT-OWNER, FIN-REFERENCE]
+          description: Solo en REJECTED.
+        detail: { type: string, description: Solo en REJECTED. }
+    PushResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items: { $ref: '#/components/schemas/ChangeResult' }
+    PulledChange:
+      description: Cambio recibido del servidor; igual que `Change` más su `version`.
+      allOf:
+        - $ref: '#/components/schemas/Change'
+        - type: object
+          required: [version]
+          properties:
+            version: { type: integer, format: int64 }
+    PullResponse:
+      type: object
+      required: [changes, nextCursor, hasMore]
+      properties:
+        changes:
+          type: array
+          maxItems: 500
+          items: { $ref: '#/components/schemas/PulledChange' }
+        nextCursor: { type: integer, format: int64, description: Valor para el próximo `since`. }
+        hasMore: { type: boolean }
+        remaining:
+          type: integer
+          format: int64
+          description: Cambios pendientes después de esta página (solo cuando `since=0`).
+
+    # ------------------------------------------------------------ Sync: datos por entidad
+    SettingsData:
+      type: object
+      description: user_settings. El `id` del sobre debe ser igual al id del usuario.
+      required: [reminderLeadDays, notificationsEnabled, homeBalanceView, amountDecimals, homeCards]
+      properties:
+        reminderLeadDays: { type: integer, minimum: 0, maximum: 30, default: 5 }
+        notificationsEnabled: { type: boolean, default: true }
+        homeBalanceView: { type: string, enum: [AVAILABLE, NET] }
+        amountDecimals: { type: integer, enum: [0, 2] }
+        homeCards:
+          type: array
+          items:
+            type: object
+            required: [key, visible]
+            properties:
+              key: { type: string, enum: [BALANCE, QUICK_ACTIONS, ACCOUNTS, PENDING, PINNED_TAGS, RECENT, MONTHLY_TREND] }
+              visible: { type: boolean }
+    AccountData:
+      type: object
+      required: [name, type, initialBalance, includeInTotal, active, sortOrder]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 60 }
+        type: { type: string, enum: [CASH, DEBIT, SAVINGS, CREDIT_CARD, LOAN] }
+        initialBalance: { $ref: '#/components/schemas/Amount' }
+        includeInTotal: { type: boolean }
+        active: { type: boolean }
+        deactivatedAt:
+          oneOf: [{ $ref: '#/components/schemas/Instant' }, { type: 'null' }]
+        institution: { type: [string, 'null'], maxLength: 60 }
+        icon: { type: [string, 'null'], maxLength: 30 }
+        color: { type: [string, 'null'], pattern: '^#[0-9A-F]{6}$' }
+        sortOrder: { type: integer }
+    CreditCardDetailsData:
+      type: object
+      description: El `id` del sobre es el id de la cuenta CREDIT_CARD.
+      required: [creditLimit, cutOffDay, paymentDay, rate, rateType, firstInstallmentInterestFree]
+      properties:
+        creditLimit: { $ref: '#/components/schemas/PositiveAmount' }
+        cutOffDay: { $ref: '#/components/schemas/DayOfMonth' }
+        paymentDay: { $ref: '#/components/schemas/DayOfMonth' }
+        rate: { $ref: '#/components/schemas/Rate' }
+        rateType: { $ref: '#/components/schemas/RateType' }
+        firstInstallmentInterestFree: { type: boolean }
+    LoanDetailsData:
+      type: object
+      description: El `id` del sobre es el id de la cuenta LOAN.
+      required: [mode, paymentDay, lifeInsuranceMonthly, otherCostsMonthly]
+      properties:
+        mode: { type: string, enum: [DETAILED, SIMPLE] }
+        disbursementAccountId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        principal:
+          oneOf: [{ $ref: '#/components/schemas/PositiveAmount' }, { type: 'null' }]
+        installmentsCount: { type: [integer, 'null'], minimum: 1, maximum: 600 }
+        rate:
+          oneOf: [{ $ref: '#/components/schemas/Rate' }, { type: 'null' }]
+        rateType:
+          oneOf: [{ $ref: '#/components/schemas/RateType' }, { type: 'null' }]
+        firstDueDate:
+          oneOf: [{ $ref: '#/components/schemas/LocalDate' }, { type: 'null' }]
+        paymentDay: { $ref: '#/components/schemas/DayOfMonth' }
+        monthlyPayment:
+          oneOf: [{ $ref: '#/components/schemas/PositiveAmount' }, { type: 'null' }]
+        lifeInsuranceMonthly: { $ref: '#/components/schemas/Amount' }
+        otherCostsMonthly: { $ref: '#/components/schemas/Amount' }
+    CategoryData:
+      type: object
+      required: [name, kind, isBase, sortOrder]
+      properties:
+        parentId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        name: { type: string, minLength: 1, maxLength: 50 }
+        kind: { type: string, enum: [EXPENSE, INCOME] }
+        isBase: { type: boolean }
+        systemKey: { type: [string, 'null'], enum: [FINANCIAL_CHARGES, null] }
+        icon: { type: [string, 'null'], maxLength: 30 }
+        sortOrder: { type: integer }
+    TagData:
+      type: object
+      required: [name, pinned]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+        pinned: { type: boolean }
+    TransactionData:
+      type: object
+      description: |
+        Reglas (también en la base): `amount` > 0; TRANSFER exige `destinationAccountId` distinto de
+        `accountId` y no lleva `categoryId`; EXPENSE e INCOME exigen `categoryId`; si hay desglose,
+        `principal + interest + fees = amount`.
+      required: [type, amount, occurredAt, accountId, installments]
+      properties:
+        type: { type: string, enum: [EXPENSE, INCOME, TRANSFER] }
+        amount: { $ref: '#/components/schemas/PositiveAmount' }
+        occurredAt: { $ref: '#/components/schemas/Instant' }
+        accountId: { $ref: '#/components/schemas/Uuid' }
+        destinationAccountId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        categoryId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        tagId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        note: { type: [string, 'null'], maxLength: 500 }
+        installments: { type: integer, minimum: 1, maximum: 72, default: 1 }
+        principal:
+          oneOf: [{ $ref: '#/components/schemas/Amount' }, { type: 'null' }]
+        interest:
+          oneOf: [{ $ref: '#/components/schemas/Amount' }, { type: 'null' }]
+        fees:
+          oneOf: [{ $ref: '#/components/schemas/Amount' }, { type: 'null' }]
+        installmentId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        recurringId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        paymentKind: { type: [string, 'null'], enum: [CARD_MIN, CARD_TOTAL, LOAN_INSTALL, LOAN_EXTRA, null] }
+    DeferredPurchaseData:
+      type: object
+      required: [cardAccountId, purchaseTransactionId, amount, installmentsCount, rate, rateType,
+                 firstInstallmentInterestFree, firstDueDate]
+      properties:
+        cardAccountId: { $ref: '#/components/schemas/Uuid' }
+        purchaseTransactionId: { $ref: '#/components/schemas/Uuid' }
+        amount: { $ref: '#/components/schemas/PositiveAmount' }
+        installmentsCount: { type: integer, minimum: 2, maximum: 72 }
+        rate: { $ref: '#/components/schemas/Rate' }
+        rateType: { $ref: '#/components/schemas/RateType' }
+        firstInstallmentInterestFree: { type: boolean }
+        firstDueDate: { $ref: '#/components/schemas/LocalDate' }
+    InstallmentData:
+      type: object
+      description: Exactamente uno de `deferredPurchaseId` o `loanAccountId`.
+      required: [number, dueDate, principal, interest, insurance, otherCosts, status]
+      properties:
+        deferredPurchaseId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        loanAccountId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        number: { type: integer, minimum: 1 }
+        dueDate: { $ref: '#/components/schemas/LocalDate' }
+        principal: { $ref: '#/components/schemas/Amount' }
+        interest: { $ref: '#/components/schemas/Amount' }
+        insurance: { $ref: '#/components/schemas/Amount' }
+        otherCosts: { $ref: '#/components/schemas/Amount' }
+        status: { type: string, enum: [SCHEDULED, PAID, CANCELLED] }
+        paidAt:
+          oneOf: [{ $ref: '#/components/schemas/Instant' }, { type: 'null' }]
+    RecurringExpenseData:
+      type: object
+      description: '`intervalCount` e `intervalUnit` son obligatorios solo con frequency = CUSTOM.'
+      required: [name, estimatedAmount, accountId, categoryId, startDate, frequency, nextDueDate, active]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 60 }
+        estimatedAmount: { $ref: '#/components/schemas/PositiveAmount' }
+        lastPaidAmount:
+          oneOf: [{ $ref: '#/components/schemas/PositiveAmount' }, { type: 'null' }]
+        accountId: { $ref: '#/components/schemas/Uuid' }
+        categoryId: { $ref: '#/components/schemas/Uuid' }
+        startDate: { $ref: '#/components/schemas/LocalDate' }
+        frequency: { type: string, enum: [WEEKLY, BIWEEKLY, MONTHLY, QUARTERLY, YEARLY, CUSTOM] }
+        intervalCount: { type: [integer, 'null'], minimum: 1, maximum: 365 }
+        intervalUnit: { type: [string, 'null'], enum: [DAY, WEEK, MONTH, null] }
+        nextDueDate: { $ref: '#/components/schemas/LocalDate' }
+        lastNotifiedOn:
+          oneOf: [{ $ref: '#/components/schemas/LocalDate' }, { type: 'null' }]
+        active: { type: boolean }
+    ChangeLogData:
+      type: object
+      required: [transactionId, action, changedAt]
+      properties:
+        transactionId: { $ref: '#/components/schemas/Uuid' }
+        action: { type: string, enum: [CREATE, UPDATE, DELETE, RESTORE] }
+        beforeValue:
+          oneOf: [{ $ref: '#/components/schemas/TransactionData' }, { type: 'null' }]
+        afterValue:
+          oneOf: [{ $ref: '#/components/schemas/TransactionData' }, { type: 'null' }]
+        changedAt: { $ref: '#/components/schemas/Instant' }

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentación de Coffer
+    url: https://github.com/Julian049/coffer-docs
+    about: SRS, arquitectura, diseño, contrato de la API, plan de pruebas y plan de sprints.

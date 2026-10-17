@@ -1,0 +1,4 @@
+# Local development against docker compose (reads the same .env variables)
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:${DB_PORT_EXTERNAL:5432}/${DB_NAME:coffer}}
