@@ -4,29 +4,51 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import tools.jackson.databind.JsonNode;
 
-/** The {@code data} member of a change, one record per entity (openapi.yml *Data schemas). */
+/**
+ * The {@code data} member of a change, one record per entity (openapi.yml *Data schemas). The constraints mirror the
+ * contract and run on every pushed change; rules across fields or rows live in the sync handlers.
+ */
 public sealed interface EntityData {
 
-    record SettingsData(int reminderLeadDays, boolean notificationsEnabled, String homeBalanceView, int amountDecimals,
-                        JsonNode homeCards) implements EntityData {
+    record SettingsData(@Min(0) @Max(30) int reminderLeadDays, boolean notificationsEnabled,
+                        @NotNull @Pattern(regexp = "AVAILABLE|NET") String homeBalanceView,
+                        @Min(0) @Max(2) int amountDecimals, @NotNull JsonNode homeCards) implements EntityData {
     }
 
-    record AccountData(String name, String type, BigDecimal initialBalance, boolean includeInTotal, boolean active,
-                       Instant deactivatedAt, String institution, String icon, String color, int sortOrder) implements EntityData {
+    record AccountData(@NotBlank @Size(max = 60) String name,
+                       @NotNull @Pattern(regexp = "CASH|DEBIT|SAVINGS|CREDIT_CARD|LOAN") String type,
+                       @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal initialBalance,
+                       boolean includeInTotal, boolean active, Instant deactivatedAt, @Size(max = 60) String institution,
+                       @Size(max = 30) String icon, @Pattern(regexp = "^#[0-9A-F]{6}$") String color, int sortOrder) implements EntityData {
     }
 
-    record CategoryData(UUID parentId, String name, String kind, boolean isBase, String systemKey, String icon,
+    record CategoryData(UUID parentId, @NotBlank @Size(max = 50) String name,
+                        @NotNull @Pattern(regexp = "EXPENSE|INCOME") String kind, boolean isBase,
+                        @Pattern(regexp = "FINANCIAL_CHARGES") String systemKey, @Size(max = 30) String icon,
                         int sortOrder) implements EntityData {
     }
 
-    record TagData(String name, boolean pinned) implements EntityData {
+    record TagData(@NotBlank @Size(max = 50) String name, boolean pinned) implements EntityData {
     }
 
-    record TransactionData(String type, BigDecimal amount, Instant occurredAt, UUID accountId, UUID destinationAccountId,
-                           UUID categoryId, UUID tagId, String note, int installments, BigDecimal principal,
-                           BigDecimal interest, BigDecimal fees, UUID installmentId, UUID recurringId,
-                           String paymentKind) implements EntityData {
+    record TransactionData(@NotNull @Pattern(regexp = "EXPENSE|INCOME|TRANSFER") String type,
+                           @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal amount,
+                           @NotNull Instant occurredAt, @NotNull UUID accountId, UUID destinationAccountId, UUID categoryId,
+                           UUID tagId, @Size(max = 500) String note, @Min(1) @Max(72) int installments,
+                           @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal principal,
+                           @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal interest,
+                           @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal fees, UUID installmentId,
+                           UUID recurringId,
+                           @Pattern(regexp = "CARD_MIN|CARD_TOTAL|LOAN_INSTALL|LOAN_EXTRA") String paymentKind) implements EntityData {
     }
 }

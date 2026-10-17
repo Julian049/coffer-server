@@ -26,6 +26,7 @@ public final class Contract {
                     // The discriminator mapping points at allOf schemas the validator cannot resolve; oneOf still
                     // requires exactly one entity schema to match (each pins its entity with const)
                     .withLevel("validation.response.body.schema.discriminator", ValidationReport.Level.IGNORE)
+                    .withLevel("validation.request.body.schema.discriminator", ValidationReport.Level.IGNORE)
                     .build())
             .build();
 
