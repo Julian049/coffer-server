@@ -39,6 +39,12 @@ class ArchitectureTest {
             .that().resideInAPackage(SHARED)
             .should().dependOnClassesThat().resideInAnyPackage(CONFIG, IDENTITY, LEDGER, SYNC, LEGACY);
 
+    // Wiring points at the modules, never the other way around (detailed-design §6.4)
+    @ArchTest
+    static final ArchRule modulesDoNotDependOnConfig = noClasses()
+            .that().resideInAnyPackage(SHARED, IDENTITY, LEDGER, SYNC)
+            .should().dependOnClassesThat().resideInAPackage(CONFIG);
+
     @ArchTest
     static final ArchRule newModulesIgnoreLegacy = noClasses()
             .that().resideInAnyPackage(SHARED, CONFIG, IDENTITY, LEDGER, SYNC)

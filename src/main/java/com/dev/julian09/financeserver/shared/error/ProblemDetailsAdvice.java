@@ -32,6 +32,16 @@ public class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
         return problem(ex.errorCode(), ex.getMessage());
     }
 
+    @ExceptionHandler(RateLimitException.class)
+    ResponseEntity<Object> handleRateLimit(RateLimitException ex) {
+        // Rounded up so a client never retries a fraction of a second too early
+        long seconds = Math.max(1, (ex.retryAfter().toMillis() + 999) / 1000);
+        return ResponseEntity.status(ErrorCode.RATE_LIMIT.status())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(build(ErrorCode.RATE_LIMIT, ex.getMessage()));
+    }
+
     // A unique constraint hit (e.g. a repeated local_id) is a conflict, not a server failure
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<Object> handleIntegrity(DataIntegrityViolationException ex) {

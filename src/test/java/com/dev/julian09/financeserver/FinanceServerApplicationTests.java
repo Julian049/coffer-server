@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
-import com.atlassian.oai.validator.OpenApiInteractionValidator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,7 +13,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
-import static com.atlassian.oai.validator.mockmvc.OpenApiValidationMatchers.openApi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -25,10 +23,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class FinanceServerApplicationTests {
-
-    // Copy of docs/04-api/openapi.yml; refresh it when the contract changes
-    private static final OpenApiInteractionValidator CONTRACT =
-            OpenApiInteractionValidator.createForSpecificationUrl("contract/openapi.yml").build();
 
     @Autowired
     MockMvc mvc;
@@ -42,7 +36,7 @@ class FinanceServerApplicationTests {
         mvc.perform(get("/actuator/health").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
-                .andExpect(openApi().isValid(CONTRACT));
+                .andExpect(Contract.matches());
     }
 
     @Test
