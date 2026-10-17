@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-17
+
+### Added
+
+- Ledger schema: `V4` (global `sync_version` sequence and trigger), `V5` (`user_settings`, `accounts`, `categories`, `tags`), `V6` (new `transactions`; the MVP table is kept as `transactions_mvp` and its rows move to the `owner` user)
+- `GET /api/v1/sync/pull`: changes of every synced table ordered by the global version, deletions included, `remaining` on the initial download
+- Ledger JPA entities and repositories; `FlywayMigrationIT` (empty database and database with MVP data) and `PullServiceIT`
+- `POST /api/v1/sync/push`: batches of up to 200 changes, one result per change (`APPLIED` with version, `STALE`, `REJECTED` with `FIN-VALIDATION`/`FIN-NOT-OWNER`/`FIN-REFERENCE`), last-write-wins by `updatedAt`, 413 above 200
+- Sync handlers for settings, accounts, categories, tags and transactions; `LedgerValidators` checks references before writing so one bad change never fails the batch; each write runs under a savepoint
+- `PushServiceIT` (dependency order, resend without duplicates, last change wins, deletions, another user's id, isolated failures, 413)
+
+### Removed
+
+- MVP `/transactions` API, Lombok and MapStruct
+
 ## [0.3.0] - 2026-10-16
 
 ### Added
