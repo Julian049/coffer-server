@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Spring Boot 4.0.8 -> 4.1.1; Flyway version managed by Spring Boot (12.4.0) instead of a manual pin
+- Dependabot groups minor/patch Maven bumps and all Actions bumps; never proposes a new Java major for the Docker image
+
 ## [0.2.0] - 2026-10-16
 
 ### Added

@@ -7,17 +7,25 @@ updates:
       interval: weekly
     labels: ["type:chore", "area:ops"]
     groups:
-      spring:
-        patterns: ["org.springframework*"]
+      # One PR for every minor/patch bump; majors keep their own PR to be reviewed one by one
+      maven-minor-patch:
+        update-types: ["minor", "patch"]
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop
     schedule:
       interval: weekly
     labels: ["type:chore", "area:ops"]
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: docker
     directory: /
     target-branch: develop
     schedule:
       interval: weekly
     labels: ["type:chore", "area:ops"]
+    ignore:
+      # Java 21 LTS by design; changing the Java major is a decision, not a routine bump
+      - dependency-name: eclipse-temurin
+        update-types: ["version-update:semver-major"]
