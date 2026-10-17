@@ -3,3 +3,8 @@ logging:
   level:
     root: WARN
     com.dev.julian09.financeserver: INFO
+finance:
+  jwt:
+    # No default: the service refuses to start without its own keys
+    private-key: ${JWT_PRIVATE_KEY}
+    public-key: ${JWT_PUBLIC_KEY}
