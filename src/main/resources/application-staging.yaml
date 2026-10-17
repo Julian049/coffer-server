@@ -1,1 +1,6 @@
 # Render coffer-server-staging + Neon branch "staging"; DB_URL, DB_USER, DB_PASSWORD come from Render
+finance:
+  jwt:
+    # No default: the service refuses to start without its own keys
+    private-key: ${JWT_PRIVATE_KEY}
+    public-key: ${JWT_PUBLIC_KEY}

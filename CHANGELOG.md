@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-16
+
+### Added
+
+- Authentication API (`/api/v1/auth/register`, `login`, `refresh`, `logout`) and `GET /api/v1/me`, as in `openapi.yml`
+- `V3__create_identity.sql`: `users` and `refresh_tokens`
+- RS256 access tokens (15 min) signed with `JWT_PRIVATE_KEY`; rotating refresh tokens (SHA-256, 180-day sliding expiry) with family revocation on reuse
+- BCrypt (cost 12), case-insensitive uniqueness of username and email, same error for unknown user and wrong password
+- Login rate limit (5 per minute per IP and identifier) with `429 FIN-RATE-LIMIT` and `Retry-After`
+- Daily purge of expired refresh tokens; `CurrentUser` controller parameter
+
+### Changed
+
+- Every route except auth, health, info and API docs requires a bearer token; the MVP `/transactions` API is no longer public
+- `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` are required in staging and prod (Render Blueprint updated)
+- Spring Boot 4.0.8 -> 4.1.1; Flyway version managed by Spring Boot (12.4.0) instead of a manual pin
+- Dependabot groups minor/patch Maven bumps and all Actions bumps; never proposes a new Java major for the Docker image
+
 ## [0.2.0] - 2026-10-16
 
 ### Added
