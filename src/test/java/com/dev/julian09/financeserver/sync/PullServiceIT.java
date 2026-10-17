@@ -77,7 +77,7 @@ class PullServiceIT {
                 .andExpect(jsonPath("$.remaining").value(2))
                 .andExpect(jsonPath("$.changes[0].entity").value("settings"))
                 .andExpect(jsonPath("$.changes[1].data.initialBalance").value("1250000.0000"))
-                .andExpect(Contract.matches()));
+                .andExpect(Contract.matchesComposed()));
         long cursor = first.get("nextCursor").asLong();
         assertThat(first.get("changes").get(3).get("version").asLong()).isEqualTo(cursor);
 
@@ -86,7 +86,7 @@ class PullServiceIT {
                 .andExpect(jsonPath("$.changes.length()").value(2))
                 .andExpect(jsonPath("$.hasMore").value(false))
                 .andExpect(jsonPath("$.remaining").doesNotExist())
-                .andExpect(Contract.matches()));
+                .andExpect(Contract.matchesComposed()));
         // Deletions travel too, so other devices remove them (REQ-SYN-03)
         assertThat(second.get("changes").get(1).get("deletedAt").isNull()).isFalse();
         assertThat(second.get("changes").get(0).get("data").get("amount").asText()).isEqualTo("28000.0000");

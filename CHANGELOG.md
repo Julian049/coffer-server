@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Ledger schema: `V4` (global `sync_version` sequence and trigger), `V5` (`user_settings`, `accounts`, `categories`, `tags`), `V6` (new `transactions`; the MVP table is kept as `transactions_mvp` and its rows move to the `owner` user)
+- `GET /api/v1/sync/pull`: changes of every synced table ordered by the global version, deletions included, `remaining` on the initial download
+- Ledger JPA entities and repositories; `FlywayMigrationIT` (empty database and database with MVP data) and `PullServiceIT`
+
+### Removed
+
+- MVP `/transactions` API, Lombok and MapStruct
+
 ## [0.3.0] - 2026-10-16
 
 ### Added
