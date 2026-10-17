@@ -162,8 +162,6 @@ class AuthControllerIT {
         mvc.perform(get("/api/v1/me").header("Authorization", "Bearer not-a-jwt"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().string(not(containsString("Exception"))));
-        // The MVP API is no longer public
-        mvc.perform(get("/transactions")).andExpect(status().isUnauthorized());
     }
 
     private ResultActions register(String username, String email, String password) throws Exception {

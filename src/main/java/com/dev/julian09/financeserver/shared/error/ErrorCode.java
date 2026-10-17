@@ -9,7 +9,9 @@ public enum ErrorCode {
     AUTH_REVOKED("FIN-AUTH-REVOKED", HttpStatus.UNAUTHORIZED, "auth-revoked", "Sesión revocada"),
     CONFLICT("FIN-CONFLICT", HttpStatus.CONFLICT, "conflict", "El recurso ya existe"),
     RATE_LIMIT("FIN-RATE-LIMIT", HttpStatus.TOO_MANY_REQUESTS, "rate-limit", "Demasiados intentos"),
-    INTERNAL("FIN-INTERNAL", HttpStatus.INTERNAL_SERVER_ERROR, "internal", "Error interno");
+    INTERNAL("FIN-INTERNAL", HttpStatus.INTERNAL_SERVER_ERROR, "internal", "Error interno"),
+    // openapi.yml BatchTooLarge: 413 with the validation code
+    BATCH_TOO_LARGE("FIN-VALIDATION", HttpStatus.CONTENT_TOO_LARGE, "validation", "Lote demasiado grande");
 
     private static final String TYPE_BASE = "https://finance.app/problems/";
 
