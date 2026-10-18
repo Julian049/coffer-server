@@ -59,7 +59,7 @@ public class CategorySyncHandler extends SyncHandler<CategoryData> {
         if (parent.isEmpty()) {
             return Optional.of(Rejection.reference("La categoría principal no existe"));
         }
-        if (parent.get().parentId() != null) {
+        if (parent.get().parentId() != null || ledger.hasSubcategories(userId, change.id())) {
             return Optional.of(Rejection.invalid("Las subcategorías tienen un solo nivel"));
         }
         if (!parent.get().kind().equals(d.kind())) {

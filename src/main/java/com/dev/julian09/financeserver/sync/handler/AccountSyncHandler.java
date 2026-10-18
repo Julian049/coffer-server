@@ -3,6 +3,7 @@ package com.dev.julian09.financeserver.sync.handler;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.dev.julian09.financeserver.ledger.validation.LedgerValidators;
 import com.dev.julian09.financeserver.sync.dto.EntityData.AccountData;
 import com.dev.julian09.financeserver.sync.dto.IncomingChange;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -25,8 +26,11 @@ public class AccountSyncHandler extends SyncHandler<AccountData> {
             RETURNING version
             """;
 
-    public AccountSyncHandler(NamedParameterJdbcTemplate jdbc) {
+    private final LedgerValidators ledger;
+
+    public AccountSyncHandler(NamedParameterJdbcTemplate jdbc, LedgerValidators ledger) {
         super(jdbc, AccountData.class);
+        this.ledger = ledger;
     }
 
     @Override
@@ -42,6 +46,13 @@ public class AccountSyncHandler extends SyncHandler<AccountData> {
     @Override
     public int order(AccountData data) {
         return 1;
+    }
+
+    @Override
+    public Optional<Rejection> check(UUID userId, IncomingChange change, AccountData d) {
+        return ledger.accountType(userId, change.id())
+                .filter(type -> !type.equals(d.type()))
+                .map(type -> Rejection.invalid("El tipo de una cuenta no se puede cambiar"));
     }
 
     @Override
