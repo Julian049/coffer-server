@@ -94,6 +94,34 @@ class PushServiceIT {
     }
 
     @Test
+    void theHistoryOfATransactionSyncsBothWays() throws Exception {
+        UUID expense = UUID.randomUUID();
+        UUID created = UUID.randomUUID();
+        UUID deleted = UUID.randomUUID();
+        Map<String, Object> after = expense(28000, food);
+        push(
+                change("account", account, T1, null, account("Bancolombia")),
+                change("category", food, T1, null, category("Comida", "EXPENSE", null)),
+                change("transaction", expense, T1, null, after),
+                change("changeLog", created, T1, null, history(expense, "CREATE", null, after)),
+                change("changeLog", deleted, T2, null, history(expense, "DELETE", after, null)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[*].status").value(everyItem(is("APPLIED"))))
+                .andExpect(Contract.matchesComposed());
+
+        // A JSON null is stored as SQL NULL, not as the jsonb value null
+        assertThat(jdbc.queryForObject("SELECT before_value IS NULL FROM change_log WHERE id = ?", Boolean.class, created)).isTrue();
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andExpect(Contract.matchesComposed())
+                .andReturn().getResponse().getContentAsString());
+        JsonNode history = pulled.get("changes").get(4);
+        assertThat(history.get("entity").asString()).isEqualTo("changeLog");
+        assertThat(history.get("data").get("action").asString()).isEqualTo("DELETE");
+        assertThat(history.get("data").get("beforeValue").get("amount").asString()).isEqualTo("28000.0000");
+        assertThat(history.get("data").get("afterValue").isNull()).isTrue();
+    }
+
+    @Test
     void resendingTheSameBatchCreatesNoDuplicates() throws Exception {
         Object[] batch = {
             change("account", account, T1, null, account("Bancolombia")),
@@ -267,6 +295,17 @@ class PushServiceIT {
         Map<String, Object> copy = new LinkedHashMap<>(data);
         copy.put("accountId", accountId.toString());
         return copy;
+    }
+
+    private static Map<String, Object> history(UUID transaction, String action, Map<String, Object> before,
+                                               Map<String, Object> after) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("transactionId", transaction.toString());
+        data.put("action", action);
+        data.put("beforeValue", before);
+        data.put("afterValue", after);
+        data.put("changedAt", T1.toString());
+        return data;
     }
 
     private Map<String, Object> settings() {
