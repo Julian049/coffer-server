@@ -28,6 +28,16 @@ public class LedgerValidators {
         return exists("SELECT 1 FROM accounts WHERE id = ? AND user_id = ?", accountId, userId);
     }
 
+    /** The stored type of an account, empty if it is new: the type never changes after creation (S4-SRV01). */
+    public Optional<String> accountType(UUID userId, UUID accountId) {
+        return jdbc.queryForList("SELECT type FROM accounts WHERE id = ? AND user_id = ?", String.class, accountId, userId)
+                .stream().findFirst();
+    }
+
+    public boolean hasSubcategories(UUID userId, UUID categoryId) {
+        return exists("SELECT 1 FROM categories WHERE parent_id = ? AND user_id = ? AND deleted_at IS NULL", categoryId, userId);
+    }
+
     public boolean tagExists(UUID userId, UUID tagId) {
         return exists("SELECT 1 FROM tags WHERE id = ? AND user_id = ?", tagId, userId);
     }

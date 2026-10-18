@@ -171,6 +171,33 @@ class PushServiceIT {
     }
 
     @Test
+    void anAccountKeepsItsTypeAndCategoriesKeepOneLevel() throws Exception {
+        Map<String, Object> asSavings = new LinkedHashMap<>(account("Bancolombia"));
+        asSavings.put("type", "SAVINGS");
+        UUID lunch = UUID.randomUUID();
+        push(
+                change("account", account, T1, null, account("Bancolombia")),
+                change("category", food, T1, null, category("Comida", "EXPENSE", null)),
+                change("category", salary, T1, null, category("Salario", "INCOME", null)),
+                change("category", restaurants, T1, null, category("Restaurantes", "EXPENSE", food)))
+                .andExpect(jsonPath("$.results[*].status", everyItem(is("APPLIED"))));
+        push(
+                change("account", account, T2, null, asSavings),
+                change("account", account, T2, null, account("Bancolombia Nómina")),
+                change("category", lunch, T1, null, category("Almuerzos", "EXPENSE", restaurants)),
+                change("category", food, T2, null, category("Comida", "EXPENSE", salary)),
+                change("category", UUID.randomUUID(), T1, null, category("Bonos", "EXPENSE", salary)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[0].detail").value("El tipo de una cuenta no se puede cambiar"))
+                .andExpect(jsonPath("$.results[1].status").value("APPLIED"))
+                .andExpect(jsonPath("$.results[2].detail").value("Las subcategorías tienen un solo nivel"))
+                .andExpect(jsonPath("$.results[3].detail").value("Las subcategorías tienen un solo nivel"))
+                .andExpect(jsonPath("$.results[4].detail").value("La subcategoría debe ser del mismo tipo que su categoría"))
+                .andExpect(Contract.matchesComposed());
+        assertThat(jdbc.queryForObject("SELECT type FROM accounts WHERE id = ?", String.class, account)).isEqualTo("DEBIT");
+    }
+
+    @Test
     void aDuplicateNameRollsBackOnlyThatChange() throws Exception {
         push(
                 change("tag", UUID.randomUUID(), T1, null, Map.of("name", "Viaje", "pinned", false)),
