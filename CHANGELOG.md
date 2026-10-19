@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-19
+
 ### Added
 
 - `V8` (credit cards, loans, deferred purchases, installments) and `V9` (foreign keys from transactions to installments and recurring expenses, sync and business indexes), copied from data-model §4.3
