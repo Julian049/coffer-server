@@ -6,6 +6,7 @@ import com.dev.julian09.financeserver.shared.error.ApiException;
 import com.dev.julian09.financeserver.shared.error.ErrorCode;
 import com.dev.julian09.financeserver.identity.domain.User;
 import com.dev.julian09.financeserver.identity.dto.AuthResponse;
+import com.dev.julian09.financeserver.identity.dto.GoogleLoginRequest;
 import com.dev.julian09.financeserver.identity.dto.LoginRequest;
 import com.dev.julian09.financeserver.identity.dto.RefreshRequest;
 import com.dev.julian09.financeserver.identity.dto.RegisterRequest;
@@ -20,11 +21,13 @@ public class AuthService {
     private final UserService users;
     private final TokenService tokens;
     private final LoginRateLimiter rateLimiter;
+    private final GoogleTokenVerifier google;
 
-    public AuthService(UserService users, TokenService tokens, LoginRateLimiter rateLimiter) {
+    public AuthService(UserService users, TokenService tokens, LoginRateLimiter rateLimiter, GoogleTokenVerifier google) {
         this.users = users;
         this.tokens = tokens;
         this.rateLimiter = rateLimiter;
+        this.google = google;
     }
 
     @Transactional
@@ -38,6 +41,15 @@ public class AuthService {
         // Same message whether the user exists or not (RNF-07, SEQ-01)
         User user = users.authenticate(request.identifier(), request.password())
                 .orElseThrow(() -> new ApiException(ErrorCode.AUTH_INVALID, "Usuario o contraseña incorrectos."));
+        return response(user, tokens.issue(user.getId(), request.deviceId()));
+    }
+
+    /** REQ-AUT-03: signs in, links by email or signs up with a verified Google ID token. */
+    @Transactional
+    public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
+        GoogleTokenVerifier.GoogleIdentity identity = google.verify(request.idToken())
+                .orElseThrow(() -> new ApiException(ErrorCode.AUTH_INVALID, "No pudimos validar tu cuenta de Google."));
+        User user = users.findOrCreateByGoogle(identity);
         return response(user, tokens.issue(user.getId(), request.deviceId()));
     }
 
