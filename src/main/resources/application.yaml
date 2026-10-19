@@ -27,6 +27,9 @@ finance:
     public-key: ${JWT_PUBLIC_KEY:}
     access-ttl: PT15M
     refresh-ttl: P180D
+  google:
+    # Web client id of Google Cloud (REQ-AUT-03); empty locally and in tests, where Google sign-in is refused
+    client-id: ${GOOGLE_CLIENT_ID:}
 server:
   address: 0.0.0.0
   # Render terminates TLS in front of us; trust its X-Forwarded-For so rate limits see the client IP

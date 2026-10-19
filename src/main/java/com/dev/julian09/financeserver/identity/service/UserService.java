@@ -42,6 +42,40 @@ public class UserService {
         return users.save(user);
     }
 
+    /**
+     * SEQ-01 §1.3: by Google subject; else the account with that (verified) email gets linked; else a new user with a
+     * username taken from the email.
+     */
+    @Transactional
+    public User findOrCreateByGoogle(GoogleTokenVerifier.GoogleIdentity google) {
+        Optional<User> bySubject = users.findByGoogleSubject(google.subject());
+        if (bySubject.isPresent()) {
+            return bySubject.get();
+        }
+        Optional<User> byEmail = users.findByEmail(google.email().trim());
+        if (byEmail.isPresent()) {
+            byEmail.get().linkGoogle(google.subject(), clock.instant());
+            return byEmail.get();
+        }
+        String name = google.name() == null || google.name().isBlank() ? google.email().split("@")[0] : google.name().trim();
+        return users.save(User.forGoogle(freeUsername(google.email()), google.email().trim(),
+                name.length() > 100 ? name.substring(0, 100) : name, google.subject(), clock.instant()));
+    }
+
+    /** The email's local part with the register rules (3–40 of a-z, 0-9, dot, underscore), numbered if taken. */
+    private String freeUsername(String email) {
+        String base = email.split("@")[0].toLowerCase().replaceAll("[^a-z0-9._]", "");
+        if (base.length() < 3) {
+            base = "usuario";
+        }
+        base = base.length() > 36 ? base.substring(0, 36) : base;
+        String candidate = base;
+        for (int n = 2; users.usernameTaken(candidate); n++) {
+            candidate = base + n;
+        }
+        return candidate;
+    }
+
     /** Empty for an unknown user or a wrong password: callers must not tell them apart (SEQ-01). */
     @Transactional(readOnly = true)
     public Optional<User> authenticate(String identifier, String password) {

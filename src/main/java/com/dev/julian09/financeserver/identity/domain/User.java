@@ -56,6 +56,19 @@ public class User {
         this.updatedAt = now;
     }
 
+    /** A user who signs up with Google: no password (ck_users_credential accepts either). */
+    public static User forGoogle(String username, String email, String displayName, String googleSubject, Instant now) {
+        User user = new User(username, email, displayName, null, now);
+        user.googleSubject = googleSubject;
+        return user;
+    }
+
+    /** REQ-AUT-03: an existing account gets its Google sign-in, by its verified email. */
+    public void linkGoogle(String subject, Instant now) {
+        this.googleSubject = subject;
+        this.updatedAt = now;
+    }
+
     public UUID getId() { return id; }
 
     public String getUsername() { return username; }
