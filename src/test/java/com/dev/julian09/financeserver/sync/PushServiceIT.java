@@ -122,6 +122,55 @@ class PushServiceIT {
     }
 
     @Test
+    void aRecurringExpenseAndItsPaymentSyncBothWays() throws Exception {
+        UUID rent = UUID.randomUUID();
+        UUID payment = UUID.randomUUID();
+        Map<String, Object> paid = new LinkedHashMap<>(expense(900000, food));
+        paid.put("recurringId", rent.toString());
+        // The payment comes before the recurring expense it belongs to
+        push(
+                change("transaction", payment, T1, null, paid),
+                change("recurringExpense", rent, T1, null, recurring("Arriendo", food, "MONTHLY", null, null)),
+                change("category", food, T1, null, category("Comida", "EXPENSE", null)),
+                change("account", account, T1, null, account("Bancolombia")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[*].status").value(everyItem(is("APPLIED"))))
+                .andExpect(Contract.matchesComposed());
+
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andExpect(Contract.matchesComposed())
+                .andReturn().getResponse().getContentAsString());
+        JsonNode data = pulled.get("changes").get(2).get("data");
+        assertThat(pulled.get("changes").get(2).get("entity").asString()).isEqualTo("recurringExpense");
+        assertThat(data.get("nextDueDate").asString()).isEqualTo("2026-11-05");
+        assertThat(data.get("lastPaidAmount").asString()).isEqualTo("900000.0000");
+        assertThat(data.get("intervalCount").isNull()).isTrue();
+        assertThat(pulled.get("changes").get(3).get("data").get("recurringId").asString()).isEqualTo(rent.toString());
+    }
+
+    @Test
+    void recurringExpensesAreOnlyExpensesWithAConsistentFrequency() throws Exception {
+        Map<String, Object> orphanPayment = new LinkedHashMap<>(expense(1000, food));
+        orphanPayment.put("recurringId", UUID.randomUUID().toString());
+        push(
+                change("account", account, T1, null, account("Bancolombia")),
+                change("category", food, T1, null, category("Comida", "EXPENSE", null)),
+                change("category", salary, T1, null, category("Salario", "INCOME", null)),
+                change("recurringExpense", UUID.randomUUID(), T1, null, recurring("Salario", salary, "MONTHLY", null, null)),
+                change("recurringExpense", UUID.randomUUID(), T1, null, recurring("Gym", food, "CUSTOM", null, null)),
+                change("recurringExpense", UUID.randomUUID(), T1, null, recurring("Gym", food, "WEEKLY", 2, "WEEK")),
+                change("recurringExpense", UUID.randomUUID(), T1, null, recurring("Gym", food, "CUSTOM", 2, "WEEK")),
+                change("transaction", UUID.randomUUID(), T1, null, orphanPayment))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[3].detail").value("Los recurrentes solo aplican a gastos"))
+                .andExpect(jsonPath("$.results[4].code").value("FIN-VALIDATION"))
+                .andExpect(jsonPath("$.results[5].code").value("FIN-VALIDATION"))
+                .andExpect(jsonPath("$.results[6].status").value("APPLIED"))
+                .andExpect(jsonPath("$.results[7].code").value("FIN-REFERENCE"))
+                .andExpect(Contract.matchesComposed());
+    }
+
+    @Test
     void resendingTheSameBatchCreatesNoDuplicates() throws Exception {
         Object[] batch = {
             change("account", account, T1, null, account("Bancolombia")),
@@ -305,6 +354,23 @@ class PushServiceIT {
         data.put("beforeValue", before);
         data.put("afterValue", after);
         data.put("changedAt", T1.toString());
+        return data;
+    }
+
+    private Map<String, Object> recurring(String name, UUID category, String frequency, Integer count, String unit) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("name", name);
+        data.put("estimatedAmount", "900000.0000");
+        data.put("lastPaidAmount", "900000.0000");
+        data.put("accountId", account.toString());
+        data.put("categoryId", category.toString());
+        data.put("startDate", "2026-10-05");
+        data.put("frequency", frequency);
+        data.put("intervalCount", count);
+        data.put("intervalUnit", unit);
+        data.put("nextDueDate", "2026-11-05");
+        data.put("lastNotifiedOn", null);
+        data.put("active", true);
         return data;
     }
 

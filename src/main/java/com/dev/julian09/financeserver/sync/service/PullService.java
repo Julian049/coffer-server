@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import com.dev.julian09.financeserver.ledger.domain.Account;
 import com.dev.julian09.financeserver.ledger.domain.Category;
 import com.dev.julian09.financeserver.ledger.domain.ChangeLog;
+import com.dev.julian09.financeserver.ledger.domain.RecurringExpense;
 import com.dev.julian09.financeserver.ledger.domain.SyncableEntity;
 import com.dev.julian09.financeserver.ledger.domain.Tag;
 import com.dev.julian09.financeserver.ledger.domain.Transaction;
@@ -18,6 +19,7 @@ import com.dev.julian09.financeserver.ledger.domain.UserSettings;
 import com.dev.julian09.financeserver.ledger.repo.AccountRepository;
 import com.dev.julian09.financeserver.ledger.repo.CategoryRepository;
 import com.dev.julian09.financeserver.ledger.repo.ChangeLogRepository;
+import com.dev.julian09.financeserver.ledger.repo.RecurringExpenseRepository;
 import com.dev.julian09.financeserver.ledger.repo.TagRepository;
 import com.dev.julian09.financeserver.ledger.repo.TransactionRepository;
 import com.dev.julian09.financeserver.ledger.repo.UserSettingsRepository;
@@ -46,6 +48,7 @@ public class PullService {
             UNION ALL SELECT 'category', id, version FROM categories WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'tag', id, version FROM tags WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'transaction', id, version FROM transactions WHERE user_id = :user AND version > :since
+            UNION ALL SELECT 'recurringExpense', id, version FROM recurring_expenses WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'changeLog', id, version FROM change_log WHERE user_id = :user AND version > :since
             """;
 
@@ -59,11 +62,12 @@ public class PullService {
     private final TagRepository tags;
     private final TransactionRepository transactions;
     private final ChangeLogRepository changeLog;
+    private final RecurringExpenseRepository recurring;
     private final JsonMapper json;
 
     public PullService(NamedParameterJdbcTemplate jdbc, UserSettingsRepository settings, AccountRepository accounts,
                        CategoryRepository categories, TagRepository tags, TransactionRepository transactions,
-                       ChangeLogRepository changeLog, JsonMapper json) {
+                       ChangeLogRepository changeLog, RecurringExpenseRepository recurring, JsonMapper json) {
         this.jdbc = jdbc;
         this.settings = settings;
         this.accounts = accounts;
@@ -71,6 +75,7 @@ public class PullService {
         this.tags = tags;
         this.transactions = transactions;
         this.changeLog = changeLog;
+        this.recurring = recurring;
         this.json = json;
     }
 
@@ -91,6 +96,7 @@ public class PullService {
         load(idsByEntity, "category", categories, PullService::categoryData, loaded);
         load(idsByEntity, "tag", tags, t -> new EntityData.TagData(t.getName(), t.isPinned()), loaded);
         load(idsByEntity, "transaction", transactions, PullService::transactionData, loaded);
+        load(idsByEntity, "recurringExpense", recurring, PullService::recurringData, loaded);
         load(idsByEntity, "changeLog", changeLog, this::changeLogData, loaded);
 
         List<PulledChange> changes = new ArrayList<>(page.size());
@@ -137,6 +143,13 @@ public class PullService {
     private static EntityData categoryData(Category c) {
         return new EntityData.CategoryData(c.getParentId(), c.getName(), c.getKind(), c.isBase(), c.getSystemKey(), c.getIcon(),
                 c.getSortOrder());
+    }
+
+    private static EntityData recurringData(RecurringExpense r) {
+        return new EntityData.RecurringExpenseData(r.getName(), r.getEstimatedAmount(), r.getLastPaidAmount(), r.getAccountId(),
+                r.getCategoryId(), r.getStartDate(), r.getFrequency(),
+                r.getIntervalCount() == null ? null : r.getIntervalCount().intValue(), r.getIntervalUnit(), r.getNextDueDate(),
+                r.getLastNotifiedOn(), r.isActive());
     }
 
     private static EntityData transactionData(Transaction t) {
