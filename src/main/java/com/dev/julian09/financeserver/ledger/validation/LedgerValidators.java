@@ -1,5 +1,6 @@
 package com.dev.julian09.financeserver.ledger.validation;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +33,34 @@ public class LedgerValidators {
     public Optional<String> accountType(UUID userId, UUID accountId) {
         return jdbc.queryForList("SELECT type FROM accounts WHERE id = ? AND user_id = ?", String.class, accountId, userId)
                 .stream().findFirst();
+    }
+
+    /** A card purchase: the expense's account and amount, empty if it is not an expense of this user. */
+    public record PurchaseRef(UUID accountId, BigDecimal amount) {
+    }
+
+    public Optional<PurchaseRef> purchase(UUID userId, UUID transactionId) {
+        return jdbc.query("SELECT account_id, amount FROM transactions WHERE id = ? AND user_id = ? AND type = 'EXPENSE'",
+                (rs, i) -> new PurchaseRef(rs.getObject("account_id", UUID.class), rs.getBigDecimal("amount")), transactionId, userId)
+                .stream().findFirst();
+    }
+
+    /** The amount of a deferred purchase of this user, empty if it does not exist. */
+    public Optional<BigDecimal> deferredPurchaseAmount(UUID userId, UUID purchaseId) {
+        return jdbc.queryForList("SELECT amount FROM deferred_purchases WHERE id = ? AND user_id = ?", BigDecimal.class, purchaseId, userId)
+                .stream().findFirst();
+    }
+
+    /** Principal of the other live installments of a purchase: cancelled ones were settled by a full payment (REQ-TC-12). */
+    public BigDecimal otherInstallmentsPrincipal(UUID purchaseId, UUID installmentId) {
+        return jdbc.queryForObject("""
+                SELECT coalesce(sum(principal), 0) FROM installments
+                WHERE deferred_purchase_id = ? AND id <> ? AND deleted_at IS NULL AND status <> 'CANCELLED'
+                """, BigDecimal.class, purchaseId, installmentId);
+    }
+
+    public boolean installmentExists(UUID userId, UUID installmentId) {
+        return exists("SELECT 1 FROM installments WHERE id = ? AND user_id = ?", installmentId, userId);
     }
 
     public boolean hasSubcategories(UUID userId, UUID categoryId) {
