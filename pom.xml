@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.dev.julian09</groupId>
     <artifactId>finance-server</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
     <name>coffer-server</name>
     <description>Coffer Server: authentication and backup/sync for the Coffer app</description>
     <url/>
