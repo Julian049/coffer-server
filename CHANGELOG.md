@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `V8` (credit cards, loans, deferred purchases, installments) and `V9` (foreign keys from transactions to installments and recurring expenses, sync and business indexes), copied from data-model §4.3
+- Sync of `creditCardDetails`, `deferredPurchase` and `installment` (S7-SRV01): card terms only for a `CREDIT_CARD` account; a deferred purchase is an expense of that card for the same amount; an installment belongs to a deferred purchase or a loan, never both, and the live installments of a purchase never add up to more principal than it
+- A transaction's `installmentId` must point to an installment of the same user (`FIN-REFERENCE`)
+
+### Fixed
+
+- Pull keyed loaded rows by id only, so a card's terms (same id as its account) replaced the account in the page
+
 ## [0.7.0] - 2026-10-18
 
 ### Added

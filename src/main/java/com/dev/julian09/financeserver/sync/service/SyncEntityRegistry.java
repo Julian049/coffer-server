@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 import com.dev.julian09.financeserver.sync.handler.SyncHandler;
 import org.springframework.stereotype.Component;
 
-/** entity name → handler. Entities of later sprints (cards, loans) have no handler yet. */
+/** entity name → handler. Loan details (S10) have no handler yet. */
 @Component
 public class SyncEntityRegistry {
 

@@ -171,6 +171,75 @@ class PushServiceIT {
     }
 
     @Test
+    void aCardPurchaseInInstallmentsSyncsBothWays() throws Exception {
+        UUID card = UUID.randomUUID();
+        UUID laptop = UUID.randomUUID();
+        UUID plan = UUID.randomUUID();
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        // Out of order: the plan comes before its purchase and the card terms before the card
+        push(
+                change("installment", second, T1, null, installment(plan, null, 2, "600000.0000", "12000.0000", "SCHEDULED")),
+                change("installment", first, T1, null, installment(plan, null, 1, "600000.0000", "0.0000", "SCHEDULED")),
+                change("deferredPurchase", plan, T1, null, deferred(card, laptop, "1200000.0000")),
+                change("transaction", laptop, T1, null, withAccount(expense(1200000, food), card)),
+                change("creditCardDetails", card, T1, null, cardTerms()),
+                change("category", food, T1, null, category("Comida", "EXPENSE", null)),
+                change("account", card, T1, null, card("Visa")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[*].status").value(everyItem(is("APPLIED"))))
+                .andExpect(Contract.matchesComposed());
+
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andExpect(Contract.matchesComposed())
+                .andReturn().getResponse().getContentAsString());
+        assertThat(pulled.get("changes").findValuesAsString("entity")).containsExactly(
+                "account", "creditCardDetails", "category", "transaction", "deferredPurchase", "installment", "installment");
+        JsonNode terms = pulled.get("changes").get(1).get("data");
+        assertThat(terms.get("rate").asString()).isEqualTo("0.020000");
+        assertThat(terms.get("rateType").asString()).isEqualTo("MV");
+        assertThat(terms.get("cutOffDay").asInt()).isEqualTo(20);
+        assertThat(pulled.get("changes").get(4).get("data").get("installmentsCount").asInt()).isEqualTo(2);
+        JsonNode last = pulled.get("changes").get(5).get("data"); // the second installment came first in the batch
+        assertThat(last.get("deferredPurchaseId").asString()).isEqualTo(plan.toString());
+        assertThat(last.get("interest").asString()).isEqualTo("12000.0000");
+        assertThat(last.get("loanAccountId").isNull()).isTrue();
+    }
+
+    @Test
+    void cardTermsPurchasesAndPlansMustBeConsistent() throws Exception {
+        UUID card = UUID.randomUUID();
+        UUID laptop = UUID.randomUUID();
+        UUID plan = UUID.randomUUID();
+        UUID first = UUID.randomUUID();
+        Map<String, Object> payment = new LinkedHashMap<>(expense(1000, food));
+        payment.put("installmentId", UUID.randomUUID().toString());
+        push(
+                change("account", account, T1, null, account("Bancolombia")),
+                change("account", card, T1, null, card("Visa")),
+                change("category", food, T1, null, category("Comida", "EXPENSE", null)),
+                change("creditCardDetails", account, T1, null, cardTerms()),
+                change("transaction", laptop, T1, null, withAccount(expense(1200000, food), card)),
+                change("deferredPurchase", UUID.randomUUID(), T1, null, deferred(card, laptop, "1000000.0000")),
+                change("deferredPurchase", plan, T1, null, deferred(card, laptop, "1200000.0000")),
+                change("installment", first, T1, null, installment(plan, null, 1, "600000.0000", "0.0000", "SCHEDULED")),
+                change("installment", UUID.randomUUID(), T1, null, installment(plan, null, 2, "700000.0000", "0.0000", "SCHEDULED")),
+                change("installment", UUID.randomUUID(), T1, null, installment(plan, null, 2, "700000.0000", "0.0000", "CANCELLED")),
+                change("installment", UUID.randomUUID(), T1, null, installment(plan, card, 2, "1.0000", "0.0000", "SCHEDULED")),
+                change("transaction", UUID.randomUUID(), T1, null, payment))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[3].detail").value("Las condiciones de crédito son de una tarjeta"))
+                .andExpect(jsonPath("$.results[5].code").value("FIN-VALIDATION"))
+                .andExpect(jsonPath("$.results[6].status").value("APPLIED"))
+                .andExpect(jsonPath("$.results[7].status").value("APPLIED"))
+                .andExpect(jsonPath("$.results[8].detail").value("El capital de las cuotas supera el monto de la compra"))
+                .andExpect(jsonPath("$.results[9].status").value("APPLIED"))
+                .andExpect(jsonPath("$.results[10].code").value("FIN-VALIDATION"))
+                .andExpect(jsonPath("$.results[11].code").value("FIN-REFERENCE"))
+                .andExpect(Contract.matchesComposed());
+    }
+
+    @Test
     void resendingTheSameBatchCreatesNoDuplicates() throws Exception {
         Object[] batch = {
             change("account", account, T1, null, account("Bancolombia")),
@@ -371,6 +440,38 @@ class PushServiceIT {
         data.put("nextDueDate", "2026-11-05");
         data.put("lastNotifiedOn", null);
         data.put("active", true);
+        return data;
+    }
+
+    private static Map<String, Object> card(String name) {
+        return Map.of("name", name, "type", "CREDIT_CARD", "initialBalance", "0.0000", "includeInTotal", true, "active", true,
+                "sortOrder", 0);
+    }
+
+    private static Map<String, Object> cardTerms() {
+        return Map.of("creditLimit", "5000000.0000", "cutOffDay", 20, "paymentDay", 5, "rate", "0.020000", "rateType", "MV",
+                "firstInstallmentInterestFree", true);
+    }
+
+    private static Map<String, Object> deferred(UUID card, UUID purchase, String amount) {
+        return Map.of("cardAccountId", card.toString(), "purchaseTransactionId", purchase.toString(), "amount", amount,
+                "installmentsCount", 2, "rate", "0.020000", "rateType", "MV", "firstInstallmentInterestFree", true,
+                "firstDueDate", "2026-11-05");
+    }
+
+    private static Map<String, Object> installment(UUID purchase, UUID loan, int number, String principal, String interest,
+                                                   String status) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("deferredPurchaseId", purchase == null ? null : purchase.toString());
+        data.put("loanAccountId", loan == null ? null : loan.toString());
+        data.put("number", number);
+        data.put("dueDate", "2026-1" + number + "-05");
+        data.put("principal", principal);
+        data.put("interest", interest);
+        data.put("insurance", "0.0000");
+        data.put("otherCosts", "0.0000");
+        data.put("status", status);
+        data.put("paidAt", null);
         return data;
     }
 

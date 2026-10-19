@@ -79,6 +79,9 @@ public class TransactionSyncHandler extends SyncHandler<TransactionData> {
         if (d.recurringId() != null && !ledger.recurringExists(userId, d.recurringId())) {
             return Optional.of(Rejection.reference("El gasto recurrente no existe"));
         }
+        if (d.installmentId() != null && !ledger.installmentExists(userId, d.installmentId())) {
+            return Optional.of(Rejection.reference("La cuota no existe"));
+        }
         if (!transfer) {
             var category = ledger.category(userId, d.categoryId());
             if (category.isEmpty()) {
