@@ -2,6 +2,7 @@ package com.dev.julian09.financeserver.identity.api;
 
 import com.dev.julian09.financeserver.shared.web.CurrentUser;
 import com.dev.julian09.financeserver.identity.dto.AuthResponse;
+import com.dev.julian09.financeserver.identity.dto.GoogleLoginRequest;
 import com.dev.julian09.financeserver.identity.dto.LoginRequest;
 import com.dev.julian09.financeserver.identity.dto.RefreshRequest;
 import com.dev.julian09.financeserver.identity.dto.RegisterRequest;
@@ -35,6 +36,11 @@ public class AuthController {
     public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
         // Behind Render this is the client IP (server.forward-headers-strategy: native)
         return auth.login(request, http.getRemoteAddr());
+    }
+
+    @PostMapping("/google")
+    public AuthResponse google(@Valid @RequestBody GoogleLoginRequest request) {
+        return auth.loginWithGoogle(request);
     }
 
     @PostMapping("/refresh")

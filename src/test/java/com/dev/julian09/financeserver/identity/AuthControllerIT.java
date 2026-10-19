@@ -1,15 +1,20 @@
 package com.dev.julian09.financeserver.identity;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.UUID;
 
 import com.dev.julian09.financeserver.Contract;
 import com.dev.julian09.financeserver.TestcontainersConfiguration;
+import com.dev.julian09.financeserver.identity.service.GoogleTokenVerifier;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -30,8 +35,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** The 5 auth endpoints against PostgreSQL 16, each response checked against openapi.yml (S2-QA01). */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, AuthControllerIT.LocalGoogle.class})
 class AuthControllerIT {
+
+    /** Google's JWKS replaced by a local key (GoogleTokens). */
+    @TestConfiguration
+    static class LocalGoogle {
+        @Bean
+        @Primary
+        GoogleTokenVerifier localGoogleVerifier() {
+            return GoogleTokens.verifier(Clock.systemUTC());
+        }
+    }
 
     private static final String DEVICE = "device-0001";
 
@@ -56,6 +71,43 @@ class AuthControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(username + "@correo.com"))
                 .andExpect(Contract.matches());
+    }
+
+    @Test
+    void googleSignsUpLinksByEmailAndSignsInAgain() throws Exception {
+        String email = newUsername() + "@gmail.com";
+        String subject = "google-" + UUID.randomUUID();
+        JsonNode created = google(GoogleTokens.valid(subject, email))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.googleLinked").value(true))
+                .andExpect(jsonPath("$.user.displayName").value("Ana Gómez"))
+                .andExpect(Contract.matches())
+                .andReturn().getResponse().getContentAsString().transform(json::readTree);
+        google(GoogleTokens.valid(subject, email))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.id").value(created.get("user").get("id").asText()));
+
+        // An account with a password gets linked by its email
+        String username = newUsername();
+        register(username, username + "@correo.com", "clave-segura-1").andExpect(status().isCreated());
+        google(GoogleTokens.valid("google-" + UUID.randomUUID(), username.toUpperCase() + "@CORREO.COM"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.username").value(username))
+                .andExpect(jsonPath("$.user.googleLinked").value(true));
+    }
+
+    @Test
+    void anInvalidGoogleTokenIsRefused() throws Exception {
+        google(GoogleTokens.token(GoogleTokens.OTHER_KEY, "https://accounts.google.com", GoogleTokens.CLIENT_ID,
+                java.time.Instant.now().plusSeconds(600), "google-x", "x@gmail.com", true))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("FIN-AUTH-INVALID"))
+                .andExpect(Contract.matches());
+    }
+
+    private ResultActions google(String idToken) throws Exception {
+        String body = json.writeValueAsString(Map.of("idToken", idToken, "deviceId", DEVICE));
+        return mvc.perform(post("/api/v1/auth/google").contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
     @Test

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-19
+
+### Added
+
+- `POST /api/v1/auth/google` (REQ-AUT-03, moved from S11 into 1.0.0 by the PO): `GoogleTokenVerifier` checks Google's signature (JWKS), issuer, audience = `GOOGLE_CLIENT_ID`, expiry and verified email; the user is found by Google subject, else linked by email, else created with a username taken from the email. Without `GOOGLE_CLIENT_ID` every token is refused
+
+### Removed
+
+- `V10`: drops `transactions_mvp` and the MVP `owner` user with its rows; the MVP data is not claimed, the history arrives with the CSV import (S8-OPS03)
+
 ## [0.8.0] - 2026-10-19
 
 ### Added
