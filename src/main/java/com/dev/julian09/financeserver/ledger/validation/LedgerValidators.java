@@ -38,6 +38,10 @@ public class LedgerValidators {
         return exists("SELECT 1 FROM categories WHERE parent_id = ? AND user_id = ? AND deleted_at IS NULL", categoryId, userId);
     }
 
+    public boolean recurringExists(UUID userId, UUID recurringId) {
+        return exists("SELECT 1 FROM recurring_expenses WHERE id = ? AND user_id = ?", recurringId, userId);
+    }
+
     public boolean tagExists(UUID userId, UUID tagId) {
         return exists("SELECT 1 FROM tags WHERE id = ? AND user_id = ?", tagId, userId);
     }

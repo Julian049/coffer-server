@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-18
+
+### Added
+
+- Sync of `recurringExpense` (S6-SRV01): push and pull with last-write-wins; the category must be an expense one, the account and category must exist, and only `CUSTOM` carries `intervalCount` and `intervalUnit`
+- A transaction's `recurringId` must point to a recurring expense of the same user (`FIN-REFERENCE`)
+
 ## [0.6.0] - 2026-10-18
 
 ### Added

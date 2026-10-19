@@ -2,6 +2,7 @@ package com.dev.julian09.financeserver.sync.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import jakarta.validation.constraints.DecimalMin;
@@ -50,6 +51,15 @@ public sealed interface EntityData {
                            @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal fees, UUID installmentId,
                            UUID recurringId,
                            @Pattern(regexp = "CARD_MIN|CARD_TOTAL|LOAN_INSTALL|LOAN_EXTRA") String paymentKind) implements EntityData {
+    }
+
+    record RecurringExpenseData(@NotBlank @Size(max = 60) String name,
+                                @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal estimatedAmount,
+                                @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal lastPaidAmount,
+                                @NotNull UUID accountId, @NotNull UUID categoryId, @NotNull LocalDate startDate,
+                                @NotNull @Pattern(regexp = "WEEKLY|BIWEEKLY|MONTHLY|QUARTERLY|YEARLY|CUSTOM") String frequency,
+                                @Min(1) @Max(365) Integer intervalCount, @Pattern(regexp = "DAY|WEEK|MONTH") String intervalUnit,
+                                @NotNull LocalDate nextDueDate, LocalDate lastNotifiedOn, boolean active) implements EntityData {
     }
 
     /** Before and after are TransactionData snapshots (or null); stored as they come, as an audit trail. */
