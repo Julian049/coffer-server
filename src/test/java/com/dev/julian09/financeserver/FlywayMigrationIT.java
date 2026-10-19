@@ -12,7 +12,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Every migration on an empty database and on one holding MVP data, as production and staging have (S3-QA01). */
+/** Every migration on an empty database and on one holding MVP data, as production and staging had (S3-QA01, S8-OPS03). */
 class FlywayMigrationIT {
 
     @Test
@@ -28,7 +28,7 @@ class FlywayMigrationIT {
     }
 
     @Test
-    void movesMvpTransactionsToTheOwnerAndKeepsTheOldTable() {
+    void movesMvpTransactionsToTheOwnerAndV10DropsThemWithTheOldTable() {
         try (PostgreSQLContainer db = new PostgreSQLContainer("postgres:16-alpine")) {
             db.start();
             flyway(db, "2").migrate();
@@ -40,7 +40,7 @@ class FlywayMigrationIT {
                     ('33333333-3333-3333-3333-333333333333', 'Cero', 0, false, NULL, '2026-05-03T08:00:00Z', true)
                     """);
 
-            flyway(db, null).migrate();
+            flyway(db, "9").migrate();
 
             assertThat(jdbc.queryForObject("SELECT username FROM users", String.class)).isEqualTo("owner");
             List<Map<String, Object>> moved = jdbc.queryForList(
@@ -53,6 +53,13 @@ class FlywayMigrationIT {
             assertThat(jdbc.queryForObject("SELECT count(*) FROM transactions_mvp", Integer.class)).isEqualTo(3);
             // The trigger gave every migrated row a version, so the owner's data is pullable
             assertThat(jdbc.queryForObject("SELECT min(version) FROM transactions", Long.class)).isPositive();
+
+            // V10 (S8): the MVP data is not claimed; the old table, the owner and its rows go
+            flyway(db, null).migrate();
+            assertThat(jdbc.queryForObject("SELECT to_regclass('transactions_mvp') IS NULL", Boolean.class)).isTrue();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM users", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM transactions", Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM accounts", Integer.class)).isZero();
         }
     }
 
