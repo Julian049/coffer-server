@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `V7`: `change_log` (history of every transaction) and `recurring_expenses` (used from S6)
+- Sync of `changeLog`: push and pull with last-write-wins like the other tables; a JSON null before or after value is stored as SQL NULL
+
 ## [0.5.0] - 2026-10-18
 
 ### Changed
