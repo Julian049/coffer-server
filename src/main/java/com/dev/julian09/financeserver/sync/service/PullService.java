@@ -10,12 +10,14 @@ import java.util.stream.Collectors;
 
 import com.dev.julian09.financeserver.ledger.domain.Account;
 import com.dev.julian09.financeserver.ledger.domain.Category;
+import com.dev.julian09.financeserver.ledger.domain.ChangeLog;
 import com.dev.julian09.financeserver.ledger.domain.SyncableEntity;
 import com.dev.julian09.financeserver.ledger.domain.Tag;
 import com.dev.julian09.financeserver.ledger.domain.Transaction;
 import com.dev.julian09.financeserver.ledger.domain.UserSettings;
 import com.dev.julian09.financeserver.ledger.repo.AccountRepository;
 import com.dev.julian09.financeserver.ledger.repo.CategoryRepository;
+import com.dev.julian09.financeserver.ledger.repo.ChangeLogRepository;
 import com.dev.julian09.financeserver.ledger.repo.TagRepository;
 import com.dev.julian09.financeserver.ledger.repo.TransactionRepository;
 import com.dev.julian09.financeserver.ledger.repo.UserSettingsRepository;
@@ -27,6 +29,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -43,6 +46,7 @@ public class PullService {
             UNION ALL SELECT 'category', id, version FROM categories WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'tag', id, version FROM tags WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'transaction', id, version FROM transactions WHERE user_id = :user AND version > :since
+            UNION ALL SELECT 'changeLog', id, version FROM change_log WHERE user_id = :user AND version > :since
             """;
 
     private record Row(String entity, UUID id, long version) {
@@ -54,16 +58,19 @@ public class PullService {
     private final CategoryRepository categories;
     private final TagRepository tags;
     private final TransactionRepository transactions;
+    private final ChangeLogRepository changeLog;
     private final JsonMapper json;
 
     public PullService(NamedParameterJdbcTemplate jdbc, UserSettingsRepository settings, AccountRepository accounts,
-                       CategoryRepository categories, TagRepository tags, TransactionRepository transactions, JsonMapper json) {
+                       CategoryRepository categories, TagRepository tags, TransactionRepository transactions,
+                       ChangeLogRepository changeLog, JsonMapper json) {
         this.jdbc = jdbc;
         this.settings = settings;
         this.accounts = accounts;
         this.categories = categories;
         this.tags = tags;
         this.transactions = transactions;
+        this.changeLog = changeLog;
         this.json = json;
     }
 
@@ -84,6 +91,7 @@ public class PullService {
         load(idsByEntity, "category", categories, PullService::categoryData, loaded);
         load(idsByEntity, "tag", tags, t -> new EntityData.TagData(t.getName(), t.isPinned()), loaded);
         load(idsByEntity, "transaction", transactions, PullService::transactionData, loaded);
+        load(idsByEntity, "changeLog", changeLog, this::changeLogData, loaded);
 
         List<PulledChange> changes = new ArrayList<>(page.size());
         page.forEach(row -> changes.add(loaded.get(row.id())));
@@ -110,6 +118,15 @@ public class PullService {
     private EntityData settingsData(UserSettings s) {
         return new EntityData.SettingsData(s.getReminderLeadDays(), s.isNotificationsEnabled(), s.getHomeBalanceView(),
                 s.getAmountDecimals(), json.readTree(s.getHomeCards()));
+    }
+
+    private EntityData changeLogData(ChangeLog c) {
+        return new EntityData.ChangeLogData(c.getTransactionId(), c.getAction(), readOrNull(c.getBeforeValue()),
+                readOrNull(c.getAfterValue()), c.getChangedAt());
+    }
+
+    private JsonNode readOrNull(String value) {
+        return value == null ? null : json.readTree(value);
     }
 
     private static EntityData accountData(Account a) {

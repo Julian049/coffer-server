@@ -51,4 +51,9 @@ public sealed interface EntityData {
                            UUID recurringId,
                            @Pattern(regexp = "CARD_MIN|CARD_TOTAL|LOAN_INSTALL|LOAN_EXTRA") String paymentKind) implements EntityData {
     }
+
+    /** Before and after are TransactionData snapshots (or null); stored as they come, as an audit trail. */
+    record ChangeLogData(@NotNull UUID transactionId, @NotNull @Pattern(regexp = "CREATE|UPDATE|DELETE|RESTORE") String action,
+                         JsonNode beforeValue, JsonNode afterValue, @NotNull Instant changedAt) implements EntityData {
+    }
 }
