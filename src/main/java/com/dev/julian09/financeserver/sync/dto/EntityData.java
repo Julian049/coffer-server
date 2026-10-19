@@ -62,6 +62,30 @@ public sealed interface EntityData {
                                 @NotNull LocalDate nextDueDate, LocalDate lastNotifiedOn, boolean active) implements EntityData {
     }
 
+    /** The envelope id is the CREDIT_CARD account's id. Rates are fractions (0.020000 = 2 %). */
+    record CreditCardDetailsData(@NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal creditLimit,
+                                 @Min(1) @Max(31) int cutOffDay, @Min(1) @Max(31) int paymentDay,
+                                 @NotNull @DecimalMin("0") @Digits(integer = 3, fraction = 6) BigDecimal rate,
+                                 @NotNull @Pattern(regexp = "EA|MV") String rateType,
+                                 boolean firstInstallmentInterestFree) implements EntityData {
+    }
+
+    record DeferredPurchaseData(@NotNull UUID cardAccountId, @NotNull UUID purchaseTransactionId,
+                                @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal amount,
+                                @Min(2) @Max(72) int installmentsCount,
+                                @NotNull @DecimalMin("0") @Digits(integer = 3, fraction = 6) BigDecimal rate,
+                                @NotNull @Pattern(regexp = "EA|MV") String rateType, boolean firstInstallmentInterestFree,
+                                @NotNull LocalDate firstDueDate) implements EntityData {
+    }
+
+    record InstallmentData(UUID deferredPurchaseId, UUID loanAccountId, @Min(1) @Max(32767) int number, @NotNull LocalDate dueDate,
+                           @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal principal,
+                           @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal interest,
+                           @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal insurance,
+                           @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal otherCosts,
+                           @NotNull @Pattern(regexp = "SCHEDULED|PAID|CANCELLED") String status, Instant paidAt) implements EntityData {
+    }
+
     /** Before and after are TransactionData snapshots (or null); stored as they come, as an audit trail. */
     record ChangeLogData(@NotNull UUID transactionId, @NotNull @Pattern(regexp = "CREATE|UPDATE|DELETE|RESTORE") String action,
                          JsonNode beforeValue, JsonNode afterValue, @NotNull Instant changedAt) implements EntityData {

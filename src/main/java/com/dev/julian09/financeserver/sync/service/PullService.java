@@ -11,6 +11,9 @@ import java.util.stream.Collectors;
 import com.dev.julian09.financeserver.ledger.domain.Account;
 import com.dev.julian09.financeserver.ledger.domain.Category;
 import com.dev.julian09.financeserver.ledger.domain.ChangeLog;
+import com.dev.julian09.financeserver.ledger.domain.CreditCardDetails;
+import com.dev.julian09.financeserver.ledger.domain.DeferredPurchase;
+import com.dev.julian09.financeserver.ledger.domain.Installment;
 import com.dev.julian09.financeserver.ledger.domain.RecurringExpense;
 import com.dev.julian09.financeserver.ledger.domain.SyncableEntity;
 import com.dev.julian09.financeserver.ledger.domain.Tag;
@@ -19,6 +22,9 @@ import com.dev.julian09.financeserver.ledger.domain.UserSettings;
 import com.dev.julian09.financeserver.ledger.repo.AccountRepository;
 import com.dev.julian09.financeserver.ledger.repo.CategoryRepository;
 import com.dev.julian09.financeserver.ledger.repo.ChangeLogRepository;
+import com.dev.julian09.financeserver.ledger.repo.CreditCardDetailsRepository;
+import com.dev.julian09.financeserver.ledger.repo.DeferredPurchaseRepository;
+import com.dev.julian09.financeserver.ledger.repo.InstallmentRepository;
 import com.dev.julian09.financeserver.ledger.repo.RecurringExpenseRepository;
 import com.dev.julian09.financeserver.ledger.repo.TagRepository;
 import com.dev.julian09.financeserver.ledger.repo.TransactionRepository;
@@ -41,13 +47,16 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 public class PullService {
 
-    // One SELECT per synced table; add a line here when a sprint adds a table (V7, V8)
+    // One SELECT per synced table; add a line here when a sprint adds a table (loan_details in S10)
     private static final String CHANGES = """
             SELECT 'settings' AS entity, id, version FROM user_settings WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'account', id, version FROM accounts WHERE user_id = :user AND version > :since
+            UNION ALL SELECT 'creditCardDetails', id, version FROM credit_card_details WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'category', id, version FROM categories WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'tag', id, version FROM tags WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'transaction', id, version FROM transactions WHERE user_id = :user AND version > :since
+            UNION ALL SELECT 'deferredPurchase', id, version FROM deferred_purchases WHERE user_id = :user AND version > :since
+            UNION ALL SELECT 'installment', id, version FROM installments WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'recurringExpense', id, version FROM recurring_expenses WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'changeLog', id, version FROM change_log WHERE user_id = :user AND version > :since
             """;
@@ -63,11 +72,15 @@ public class PullService {
     private final TransactionRepository transactions;
     private final ChangeLogRepository changeLog;
     private final RecurringExpenseRepository recurring;
+    private final CreditCardDetailsRepository cards;
+    private final DeferredPurchaseRepository deferred;
+    private final InstallmentRepository installments;
     private final JsonMapper json;
 
     public PullService(NamedParameterJdbcTemplate jdbc, UserSettingsRepository settings, AccountRepository accounts,
                        CategoryRepository categories, TagRepository tags, TransactionRepository transactions,
-                       ChangeLogRepository changeLog, RecurringExpenseRepository recurring, JsonMapper json) {
+                       ChangeLogRepository changeLog, RecurringExpenseRepository recurring, CreditCardDetailsRepository cards,
+                       DeferredPurchaseRepository deferred, InstallmentRepository installments, JsonMapper json) {
         this.jdbc = jdbc;
         this.settings = settings;
         this.accounts = accounts;
@@ -76,6 +89,9 @@ public class PullService {
         this.transactions = transactions;
         this.changeLog = changeLog;
         this.recurring = recurring;
+        this.cards = cards;
+        this.deferred = deferred;
+        this.installments = installments;
         this.json = json;
     }
 
@@ -90,17 +106,21 @@ public class PullService {
 
         Map<String, List<UUID>> idsByEntity = page.stream()
                 .collect(Collectors.groupingBy(Row::entity, Collectors.mapping(Row::id, Collectors.toList())));
-        Map<UUID, PulledChange> loaded = new HashMap<>();
+        // By entity and id: a card's terms share the id of its account
+        Map<String, PulledChange> loaded = new HashMap<>();
         load(idsByEntity, "settings", settings, this::settingsData, loaded);
         load(idsByEntity, "account", accounts, PullService::accountData, loaded);
         load(idsByEntity, "category", categories, PullService::categoryData, loaded);
         load(idsByEntity, "tag", tags, t -> new EntityData.TagData(t.getName(), t.isPinned()), loaded);
         load(idsByEntity, "transaction", transactions, PullService::transactionData, loaded);
+        load(idsByEntity, "creditCardDetails", cards, PullService::cardData, loaded);
+        load(idsByEntity, "deferredPurchase", deferred, PullService::deferredData, loaded);
+        load(idsByEntity, "installment", installments, PullService::installmentData, loaded);
         load(idsByEntity, "recurringExpense", recurring, PullService::recurringData, loaded);
         load(idsByEntity, "changeLog", changeLog, this::changeLogData, loaded);
 
         List<PulledChange> changes = new ArrayList<>(page.size());
-        page.forEach(row -> changes.add(loaded.get(row.id())));
+        page.forEach(row -> changes.add(loaded.get(row.entity() + row.id())));
 
         Long remaining = since == 0
                 ? jdbc.queryForObject("SELECT count(*) FROM (" + CHANGES.replace(":since", ":after") + ") c",
@@ -110,13 +130,13 @@ public class PullService {
     }
 
     private <E extends SyncableEntity> void load(Map<String, List<UUID>> ids, String entity, JpaRepository<E, UUID> repo,
-                                                 Function<E, EntityData> data, Map<UUID, PulledChange> into) {
+                                                 Function<E, EntityData> data, Map<String, PulledChange> into) {
         List<UUID> wanted = ids.get(entity);
         if (wanted == null) {
             return;
         }
         for (E row : repo.findAllById(wanted)) {
-            into.put(row.getId(), new PulledChange(entity, row.getId(), row.getCreatedAt(), row.getUpdatedAt(),
+            into.put(entity + row.getId(), new PulledChange(entity, row.getId(), row.getCreatedAt(), row.getUpdatedAt(),
                     row.getDeletedAt(), data.apply(row), row.getVersion()));
         }
     }
@@ -143,6 +163,21 @@ public class PullService {
     private static EntityData categoryData(Category c) {
         return new EntityData.CategoryData(c.getParentId(), c.getName(), c.getKind(), c.isBase(), c.getSystemKey(), c.getIcon(),
                 c.getSortOrder());
+    }
+
+    private static EntityData cardData(CreditCardDetails c) {
+        return new EntityData.CreditCardDetailsData(c.getCreditLimit(), c.getCutOffDay(), c.getPaymentDay(), c.getRate(),
+                c.getRateType(), c.isFirstInstallmentInterestFree());
+    }
+
+    private static EntityData deferredData(DeferredPurchase d) {
+        return new EntityData.DeferredPurchaseData(d.getCardAccountId(), d.getPurchaseTransactionId(), d.getAmount(),
+                d.getInstallmentsCount(), d.getRate(), d.getRateType(), d.isFirstInstallmentInterestFree(), d.getFirstDueDate());
+    }
+
+    private static EntityData installmentData(Installment i) {
+        return new EntityData.InstallmentData(i.getDeferredPurchaseId(), i.getLoanAccountId(), i.getNumber(), i.getDueDate(),
+                i.getPrincipal(), i.getInterest(), i.getInsurance(), i.getOtherCosts(), i.getStatus(), i.getPaidAt());
     }
 
     private static EntityData recurringData(RecurringExpense r) {
