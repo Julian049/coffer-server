@@ -40,7 +40,7 @@ Services are created in Sprint 1 from a `render.yaml` blueprint. Env vars: `SPRI
 
 ## Current state
 
-Sprint 1 (`v0.2.0`) in progress: delivery (Dockerfile, CI, Render) and the module skeleton are in place. `identity`, `ledger` and `sync` are still empty packages (filled in Sprints 2–3); the only API is the MVP `/transactions`, now under `legacy`, which Sprint 3 replaces with `/api/v1/sync/*`. When the code changes, update this file accordingly.
+`v1.0.0` is in production (BL-3, 2026-10-19): identity (password and Google sign-in), the ledger tables V3–V9 and `/api/v1/sync/*`; V10 dropped the MVP table. The app's `v1.0.1` hotfix needed no server change. After `v1.0.0` development is paused (PO, 2026-10-19) until the PO's findings in daily use are triaged; `develop` is `1.1.0-SNAPSHOT` for Sprint 9 (reports and tags). When the code changes, update this file accordingly.
 
 ## Commands
 
@@ -67,13 +67,13 @@ Modular monolith (detailed-design §6.2.1), base package `com.dev.julian09.finan
 - `shared/web/CurrentUser`: declare it as a controller parameter to get the authenticated user id; every query must filter by it (RNF-17).
 - `ledger/` (V5, V6): JPA entities extending `SyncableEntity` (`id` from the client, `user_id`, `created_at`, `updated_at` decides last-write-wins, `deleted_at` soft delete, `version` set by the V4 trigger and never written by JPA) for `user_settings` (id = user id), `accounts`, `categories`, `tags`, `transactions`, `change_log`, `recurring_expenses` (V7), `credit_card_details`, `deferred_purchases`, `installments` (V8; `loan_details` is synced from S10), plus one `JpaRepository` each. Amounts are `BigDecimal` `NUMERIC(19,4)`, always positive (the type gives the direction).
 - `sync/` (ADR-0006): `SyncController` `GET /api/v1/sync/pull?since&limit` → `PullService`: a `UNION ALL` over the synced tables pages `(entity, id, version)` by the global cursor (add one line per new table), then JPA loads the rows and maps them to `PulledChange` + `EntityData` records (the contract's `*Data`), keyed by entity and id because a card's terms share its account's id. `remaining` only when `since=0`. `POST /api/v1/sync/push` → `PushService` (one transaction per batch, max 200 → 413): parses each change's `data` with the handler of its entity (`SyncEntityRegistry` → `SyncHandler` subclasses for settings, account, creditCardDetails, category, tag, recurringExpense, transaction, deferredPurchase, installment, changeLog; `loanDetails` is REJECTED until S10), validates it with the Bean Validation constraints on the `EntityData` records, runs `check` (cross-field rules and references via `ledger/validation/LedgerValidators`, so deferred FKs never fail at commit), sorts by `order()` (settings → accounts → card terms and root categories → subcategories → tags and recurring expenses → transactions → deferred purchases and change log → installments) and writes each one under a JDBC savepoint with `INSERT … ON CONFLICT (id) DO UPDATE … WHERE same user AND newer updated_at RETURNING version`. No row back: `STALE` if the row is ours, `REJECTED FIN-NOT-OWNER` otherwise. Results keep the request order. To sync a new table: a migration with the version trigger, an entity, an `EntityData` record, a handler, and one line in `PullService.CHANGES`.
-- `legacy/`: MVP code, described below.
+- `legacy/`: removed (the MVP notes below are history only).
 
 Rules enforced by `ArchitectureTest` (ArchUnit): modules (`shared`, `identity`, `ledger`, `sync`) never depend on `config`; `ledger` does not depend on `sync`/`identity`; `identity` does not depend on `ledger`/`sync`; `shared` depends on no module; new modules never depend on `legacy`; `@RestController`s do not use Spring Data repositories; no `double`/`float` fields in `ledger` (ADR-0004).
 
 Tests: `AuthControllerIT` and `TokenServiceTest` (Testcontainers) cover the auth flows; use `Contract.matches()` to validate any MockMvc call against the contract (strict: no undeclared properties), or `Contract.matchesComposed()` for `/sync`, whose `oneOf` + discriminator over `allOf` schemas the validator cannot handle strictly (it relaxes only `additionalProperties` and the discriminator mapping; types, enums, consts and formats are still checked). `FinanceServerApplicationTests` (Testcontainers) also validates `/actuator/health` against `src/test/resources/contract/openapi.yml` with swagger-request-validator. That file is a **copy** of `../docs/04-api/openapi.yml`; refresh it when the contract changes. Actuator exposes `health` and `info` (`build.version` = `pom.xml` version).
 
-## Legacy MVP (`legacy/`)
+## Legacy MVP (removed)
 
 
 Layered: `controller` → `service` (interface + `service/impl`) → `repository` (Spring Data JPA), with `mapper` (MapStruct) converting between `model/dto` and `model/entity`.

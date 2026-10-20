@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Development of 1.1.0 (Sprint 9) starts: version `1.1.0-SNAPSHOT`; CLAUDE.md describes the current state (`v1.0.0` in production)
+
 ## [1.0.0] - 2026-10-19
 
 ### Added
