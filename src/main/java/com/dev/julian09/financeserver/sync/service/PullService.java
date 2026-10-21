@@ -162,7 +162,7 @@ public class PullService {
 
     private static EntityData categoryData(Category c) {
         return new EntityData.CategoryData(c.getParentId(), c.getName(), c.getKind(), c.isBase(), c.getSystemKey(), c.getIcon(),
-                c.getSortOrder());
+                c.getSortOrder(), c.isExcludeFromReports());
     }
 
     private static EntityData cardData(CreditCardDetails c) {
