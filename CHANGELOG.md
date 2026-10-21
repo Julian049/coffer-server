@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-20
+
+### Added
+
+- `categories.exclude_from_reports` (V11) and `excludeFromReports` in the category sync (S9-H03, REQ-CAT-04, `openapi.yml` 1.1.0): optional, so a `v1.0.x` app that does not send it keeps its categories included (#62)
+
 ## [1.0.0] - 2026-10-19
 
 ### Added

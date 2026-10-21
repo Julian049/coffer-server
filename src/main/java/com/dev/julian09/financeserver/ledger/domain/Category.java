@@ -31,6 +31,9 @@ public class Category extends SyncableEntity {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
+    @Column(name = "exclude_from_reports", nullable = false)
+    private boolean excludeFromReports;
+
     protected Category() {
     }
 
@@ -47,4 +50,6 @@ public class Category extends SyncableEntity {
     public String getIcon() { return icon; }
 
     public int getSortOrder() { return sortOrder; }
+
+    public boolean isExcludeFromReports() { return excludeFromReports; }
 }
