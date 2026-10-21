@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Development of 1.2.0 (Sprint 10, loans) starts: version `1.2.0-SNAPSHOT`
 
+### Added
+
+- Loans in the sync (S10-SRV01, REQ-PRE-01 to 03, 08): `loanDetails` in push and pull with `LoanDetailsSyncHandler` (a LOAN account; a detailed loan needs amount, installments, rate and first due date, a simple one its monthly payment; the disbursement account must exist); V12 adds `loan_details.amortization` (`FIXED_PAYMENT` or `FIXED_PRINCIPAL`, optional in the contract, `openapi.yml` 1.2.0) (#67)
+
 ## [1.1.0] - 2026-10-20
 
 ### Added

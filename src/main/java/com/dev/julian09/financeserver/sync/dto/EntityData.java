@@ -83,6 +83,22 @@ public sealed interface EntityData {
                                 @NotNull LocalDate firstDueDate) implements EntityData {
     }
 
+    /** REQ-PRE-01 to 03, 08; {@code amortization} is optional since openapi 1.2.0 (null = FIXED_PRINCIPAL). */
+    record LoanDetailsData(@NotNull @Pattern(regexp = "DETAILED|SIMPLE") String mode, UUID disbursementAccountId,
+                           @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal principal,
+                           @Min(1) @Max(600) Integer installmentsCount,
+                           @DecimalMin("0") @Digits(integer = 3, fraction = 6) BigDecimal rate,
+                           @Pattern(regexp = "EA|MV") String rateType, LocalDate firstDueDate,
+                           @Min(1) @Max(31) int paymentDay,
+                           @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal monthlyPayment,
+                           @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal lifeInsuranceMonthly,
+                           @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal otherCostsMonthly,
+                           @Pattern(regexp = "FIXED_PAYMENT|FIXED_PRINCIPAL") String amortization) implements EntityData {
+        public String amortizationOrDefault() {
+            return amortization == null ? "FIXED_PRINCIPAL" : amortization;
+        }
+    }
+
     record InstallmentData(UUID deferredPurchaseId, UUID loanAccountId, @Min(1) @Max(32767) int number, @NotNull LocalDate dueDate,
                            @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal principal,
                            @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal interest,
