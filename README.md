@@ -1,133 +1,122 @@
-# FinanceServer
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/readme/coffer-logo-horizontal-dark.png">
+    <img src=".github/readme/coffer-logo-horizontal.png" alt="Coffer" width="360">
+  </picture>
+  <br>
+  <sub>Coffer Server</sub>
+</h1>
 
-API REST backend para la aplicación FinanceApp. Recibe y persiste las transacciones financieras sincronizadas desde el cliente Android, con soporte de migraciones de base de datos y health check integrado.
+<p align="center">
+  <em>El respaldo en la nube de Coffer: cuentas de usuario y sincronización para la app Android offline-first.</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Julian049/coffer-server/releases/latest"><img src="https://img.shields.io/github/v/release/Julian049/coffer-server?style=flat-square&color=4A3328&label=versi%C3%B3n" alt="Versión"></a>
+  <a href="https://github.com/Julian049/coffer-server/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Julian049/coffer-server/ci.yml?branch=develop&style=flat-square&label=CI" alt="CI"></a>
+  <img src="https://img.shields.io/badge/Java-21-4A3328?style=flat-square" alt="Java 21">
+  <img src="https://img.shields.io/badge/Spring%20Boot-4.1-4A3328?style=flat-square" alt="Spring Boot 4.1">
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4A3328?style=flat-square" alt="PostgreSQL 16">
+  <img src="https://img.shields.io/badge/licencia-pendiente-D9B99A?style=flat-square" alt="Licencia pendiente">
+</p>
+
+<p align="center">
+  <a href="#qué-hace">Qué hace</a> •
+  <a href="#api">API</a> •
+  <a href="#cómo-está-hecho">Cómo está hecho</a> •
+  <a href="#ejecutar-en-local">Ejecutar en local</a> •
+  <a href="#entornos">Entornos</a> •
+  <a href="#licencia">Licencia</a>
+</p>
 
 ---
 
-## Características
+**Coffer** es una app Android de finanzas personales que funciona sin conexión: los datos viven en una base cifrada en el teléfono. Este servicio es su **copia en la nube**. Autentica al usuario, recibe los cambios que el teléfono no ha subido y le entrega los que le faltan, para que nada se pierda al cambiar o reinstalar el teléfono.
 
-- Endpoint REST para crear y consultar transacciones
-- Persistencia en PostgreSQL con Spring Data JPA
-- Migraciones de base de datos gestionadas con Flyway
-- Manejo global de excepciones con códigos de error estructurados
-- Health check expuesto vía Spring Boot Actuator
-- Mapeo entre entidades y DTOs con MapStruct
-- Contenerización de la base de datos con Docker Compose
+La lógica financiera (cuotas, tasas, saldos) vive en la app. El servidor guarda, valida y sincroniza ([ADR-0010](https://github.com/Julian049/coffer-docs/tree/main/02-architecture/adr)). La app está en [coffer-app](https://github.com/Julian049/coffer-app) y la documentación en [coffer-docs](https://github.com/Julian049/coffer-docs).
 
----
+## Qué hace
 
-## Arquitectura
-
-El proyecto sigue una arquitectura en capas estándar de Spring Boot:
-
-* `controller/`: Definición de los puntos de entrada de la API.
-* `service/`: Lógica de negocio y procesamiento de datos.
-* `repository/`: Interfaces de comunicación con la base de datos (Spring Data JPA).
-* `model/`: Entidades JPA y Objetos de Transferencia de Datos (DTOs).
-* `exception/`: Lógica para el manejo centralizado de errores.
-* `resources/db/migration/`: Scripts SQL para la evolución de la base de datos.
-
----
+- 🔐 **Cuentas de usuario.** Registro e inicio de sesión con contraseña (BCrypt) o con Google. La sesión usa un JWT propio RS256 de 15 minutos y un refresh token rotativo por familia: si se reutiliza uno viejo, se revoca toda la familia.
+- 🔄 **Sincronización por lotes.**
+  - **Push:** hasta 200 cambios por lote, con el UUID que genera el cliente. Gana el último cambio (`updated_at`) y los borrados son lógicos.
+  - **Pull:** trae lo nuevo desde un cursor global de versión.
+- 📒 **Todo el libro contable.** Ajustes, cuentas, categorías, etiquetas, movimientos, recurrentes, tarjetas, compras a cuotas, préstamos con su plan de pagos e historial de cambios.
+- 🛡️ **Errores claros.** Toda respuesta de error es `application/problem+json` (RFC 9457) con un código `FIN-*`. Además hay un límite de intentos de inicio de sesión y cada consulta se filtra por el usuario autenticado.
+- 🧹 **Mantenimiento automático.** Cada día se purgan los refresh tokens vencidos y el historial de cambios de más de 90 días.
 
 ## API
 
-Base URL: `http://localhost:8080`
+El contrato completo está en [`openapi.yml`](https://github.com/Julian049/coffer-docs/blob/main/04-api/openapi.yml) (OpenAPI 3.1). Las pruebas lo validan en cada llamada.
 
-| Método | Endpoint              | Descripción                                                     |
-|--------|-----------------------|-----------------------------------------------------------------|
-| GET    | `/transactions`       | Retorna todas las transacciones ordenadas por fecha descendente |
-| POST   | `/transactions`       | Crea y guarda una nueva transacción                             |
-| GET    | `/actuator/health`    | Health check del servidor                                       |
+| Método | Ruta | Para qué |
+| --- | --- | --- |
+| `POST` | `/api/v1/auth/register` | Crear una cuenta |
+| `POST` | `/api/v1/auth/login` | Iniciar sesión con usuario o correo y contraseña |
+| `POST` | `/api/v1/auth/google` | Iniciar sesión con un ID token de Google |
+| `POST` | `/api/v1/auth/refresh` | Renovar la sesión |
+| `POST` | `/api/v1/auth/logout` | Cerrar la sesión del dispositivo |
+| `GET` | `/api/v1/me` | Perfil del usuario |
+| `POST` | `/api/v1/sync/push` | Subir un lote de cambios |
+| `GET` | `/api/v1/sync/pull?since=&limit=` | Traer los cambios desde un cursor |
+| `GET` | `/actuator/health`, `/actuator/info` | Estado y versión del servicio |
 
-### Ejemplo de body (POST `/transactions`)
+## Cómo está hecho
 
-```json
-{
-  "localId": "550e8400-e29b-41d4-a716-446655440000",
-  "title": "Sueldo",
-  "value": 1000.0,
-  "type": true,
-  "description": "Pago mensual",
-  "date": "2026-04-28T10:00:00+00:00",
-  "synced": false
-}
+| Pieza | Tecnología |
+| --- | --- |
+| Lenguaje y framework | Java 21, Spring Boot 4.1 (web, security, data JPA, validation, actuator) |
+| Base de datos | PostgreSQL 16; montos en `NUMERIC(19,4)` con `BigDecimal` |
+| Migraciones | Flyway, de V1 a V12; solo hacia adelante y nunca se editan |
+| Autenticación | Spring Security como resource server con llaves RS256 |
+| Pruebas | JUnit 5, Testcontainers (PostgreSQL real), ArchUnit y validación contra el contrato |
+| Entrega | Docker multi-stage, GitHub Actions y Render |
+
+Es un **monolito modular** con cuatro módulos que ArchUnit mantiene separados:
+
+| Módulo | Qué contiene |
+| --- | --- |
+| `identity` | Usuarios, tokens y Google |
+| `ledger` | Entidades y validaciones del libro contable |
+| `sync` | Push, pull y los trabajos de purga |
+| `shared` | Errores y utilidades web |
+
+## Ejecutar en local
+
+**Requisitos:** Java 21 y Docker. Las pruebas usan Testcontainers, así que no necesitan una base local.
+
+```bash
+docker compose up -d                 # PostgreSQL 16 (lee .env)
+./mvnw spring-boot:run               # http://localhost:8080; Flyway migra al arrancar
+./mvnw verify                        # todas las pruebas y el reporte de cobertura (JaCoCo)
 ```
 
-### Códigos de error
-
-| Código   | HTTP | Descripción                      |
-|----------|------|----------------------------------|
-| ERR-300  | 400  | Datos enviados inválidos         |
-| ERR-400  | 409  | Registro duplicado               |
-| ERR-500  | 500  | Error interno del servidor       |
-
----
-
-## Stack tecnológico
-
-| Tecnología | Uso |
-|---|---|
-| Java | Lenguaje principal |
-| Spring Boot | Framework base |
-| Spring Data JPA | Acceso a datos |
-| Spring Boot Actuator | Health check |
-| PostgreSQL | Base de datos |
-| Flyway | Migraciones de esquema |
-| MapStruct | Mapeo DTO ↔ Entity |
-| Lombok | Reducción de boilerplate |
-| Docker Compose | Contenerización de la BD |
-| Maven | Gestión de dependencias y build |
-
----
-
-## Configuración y ejecución
-
-### Requisitos previos
-
-- Java 21
-- Docker y Docker Compose
-- Maven
-
-### Variables de entorno
-
-Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
+`.env` de ejemplo para Docker Compose. Spring no lee este archivo: exporta las variables antes de `spring-boot:run`.
 
 ```env
-DB_NAME=financedb
+DB_NAME=coffer
 DB_USER=postgres
-DB_PASSWORD=supersecret
-DB_HOST=localhost
+DB_PASSWORD=postgres
 DB_PORT_EXTERNAL=5432
 DB_PORT_INTERNAL=5432
 ```
 
-### Levantar la base de datos
+En local, si no hay llaves JWT, el servicio genera un par temporal. En staging y producción las llaves son obligatorias y el servicio no arranca sin ellas.
 
-```bash
-docker compose up -d
-```
+## Entornos
 
-### Ejecutar el servidor
+| Entorno | Rama | Servicio en Render | Base en Neon |
+| --- | --- | --- | --- |
+| Local | cualquiera | `./mvnw spring-boot:run` | Docker Compose |
+| Staging | `develop` | `coffer-server-staging` | rama `staging` |
+| Producción | `main` | `coffer-server` | rama `production` |
 
-```bash
-./mvnw spring-boot:run
-```
+Las variables (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `GOOGLE_CLIENT_ID`, `DB_POOL_SIZE`) viven en Render y en el gestor de contraseñas del dueño, nunca en el repositorio. Antes de una migración en producción se crea una rama de respaldo en Neon. Ramas, versiones y releases siguen la [gestión de la configuración](https://github.com/Julian049/coffer-docs/blob/main/06-settings/manage-config.md). Los cambios de cada versión están en el [CHANGELOG](CHANGELOG.md).
 
-El servidor arranca en `http://0.0.0.0:8080`. Flyway aplicará las migraciones automáticamente al iniciar.
+## Licencia
 
----
-
-## Migraciones de base de datos
-
-Las migraciones se encuentran en `src/main/resources/db/migration/` y son gestionadas por Flyway:
-
-| Versión | Archivo | Descripción |
-|---|---|---|
-| V1 | `V1__first_schema.sql` | Creación inicial de la tabla `transactions` |
-| V2 | `V2__fix_schema.sql` | Corrección del esquema: renombrado de columnas y ajuste de PK/UK |
-
----
+La licencia todavía no está definida. Mientras tanto, el código queda con **todos los derechos reservados**. El tema legal (licencia, privacidad, términos y avisos de terceros) está en el backlog: [coffer-docs#47](https://github.com/Julian049/coffer-docs/issues/47).
 
 ## Autor
 
-[**Julian David Bocanegra Segura**](https://github.com/Julian049) - Desarrollador
+[**Julian David Bocanegra Segura**](https://github.com/Julian049): producto, diseño y desarrollo.
