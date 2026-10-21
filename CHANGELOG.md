@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-21
+
+### Added
+
+- `ChangeLogPurgeJob`: daily at 03:00 UTC, deletes change history entries older than 90 days (REQ-HIS-04, #72)
+
+### Changed
+
+- Version 1.3.0 (Sprint 11)
+
 ## [1.2.0] - 2026-10-20
 
 ### Added
