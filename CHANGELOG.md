@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Development of 1.3.0 (Sprint 11) starts: version `1.3.0-SNAPSHOT`
+
 ## [1.2.0] - 2026-10-20
 
 ### Added
