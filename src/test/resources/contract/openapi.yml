@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Coffer Server API
-  version: 1.1.0
+  version: 1.2.0
   summary: Autenticación, respaldo y sincronización de Coffer.
   description: |
     Contrato del servicio en la nube de Coffer (SRS v1.0 §7.3, ADR-0012).
@@ -704,6 +704,11 @@ components:
           oneOf: [{ $ref: '#/components/schemas/PositiveAmount' }, { type: 'null' }]
         lifeInsuranceMonthly: { $ref: '#/components/schemas/Amount' }
         otherCostsMonthly: { $ref: '#/components/schemas/Amount' }
+        amortization:
+          type: string
+          enum: [FIXED_PAYMENT, FIXED_PRINCIPAL]
+          default: FIXED_PRINCIPAL
+          description: REQ-PRE-03 (1.2.0). Opcional; si falta se guarda FIXED_PRINCIPAL.
     CategoryData:
       type: object
       required: [name, kind, isBase, sortOrder]

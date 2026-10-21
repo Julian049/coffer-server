@@ -113,6 +113,47 @@ class PushServiceIT {
     }
 
     @Test
+    void aLoanWithItsTermsAndPlanSyncsBothWaysAndEachModeNeedsItsFields() throws Exception {
+        UUID loan = UUID.randomUUID();
+        UUID simple = UUID.randomUUID();
+        UUID first = UUID.randomUUID();
+        Map<String, Object> detailed = new LinkedHashMap<>(Map.of("mode", "DETAILED", "principal", "5000000.0000",
+                "installmentsCount", 24, "rate", "0.015000", "rateType", "MV", "firstDueDate", "2026-11-05", "paymentDay", 5,
+                "lifeInsuranceMonthly", "8000.0000", "otherCostsMonthly", "0.0000"));
+        detailed.put("disbursementAccountId", account.toString());
+        // A v1.1.x client does not send amortization (openapi 1.2.0): it stays FIXED_PRINCIPAL
+        Map<String, Object> missingPayment = Map.of("mode", "SIMPLE", "paymentDay", 5, "lifeInsuranceMonthly", "0.0000",
+                "otherCostsMonthly", "0.0000");
+        push(
+                change("installment", first, T1, null, installment(null, loan, 1, "208333.0000", "75000.0000", "SCHEDULED")),
+                change("loanDetails", loan, T1, null, detailed),
+                change("loanDetails", simple, T1, null, missingPayment),
+                change("account", simple, T1, null, loanAccount("Vehículo")),
+                change("account", loan, T1, null, loanAccount("Libre inversión")),
+                change("account", account, T1, null, account("Bancolombia")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[1].status").value("APPLIED"))
+                .andExpect(jsonPath("$.results[2].status").value("REJECTED"))
+                .andExpect(jsonPath("$.results[0].status").value("APPLIED"))
+                .andExpect(Contract.matchesComposed());
+
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andExpect(Contract.matchesComposed())
+                .andReturn().getResponse().getContentAsString());
+        JsonNode terms = null;
+        for (JsonNode c : pulled.get("changes")) {
+            if (c.get("entity").asString().equals("loanDetails")) {
+                terms = c.get("data");
+            }
+        }
+        assertThat(terms).isNotNull();
+        assertThat(terms.get("amortization").asString()).isEqualTo("FIXED_PRINCIPAL");
+        assertThat(terms.get("installmentsCount").asInt()).isEqualTo(24);
+        assertThat(terms.get("disbursementAccountId").asString()).isEqualTo(account.toString());
+        assertThat(pulled.get("changes").findValuesAsString("entity")).containsSubsequence("account", "loanDetails", "installment");
+    }
+
+    @Test
     void theHistoryOfATransactionSyncsBothWays() throws Exception {
         UUID expense = UUID.randomUUID();
         UUID created = UUID.randomUUID();
@@ -408,6 +449,11 @@ class PushServiceIT {
 
     private Map<String, Object> account(String name) {
         return Map.of("name", name, "type", "DEBIT", "initialBalance", "1250000.0000", "includeInTotal", true, "active", true,
+                "sortOrder", 0);
+    }
+
+    private static Map<String, Object> loanAccount(String name) {
+        return Map.of("name", name, "type", "LOAN", "initialBalance", "0.0000", "includeInTotal", true, "active", true,
                 "sortOrder", 0);
     }
 

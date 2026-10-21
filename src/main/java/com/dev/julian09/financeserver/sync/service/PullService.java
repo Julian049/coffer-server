@@ -14,6 +14,7 @@ import com.dev.julian09.financeserver.ledger.domain.ChangeLog;
 import com.dev.julian09.financeserver.ledger.domain.CreditCardDetails;
 import com.dev.julian09.financeserver.ledger.domain.DeferredPurchase;
 import com.dev.julian09.financeserver.ledger.domain.Installment;
+import com.dev.julian09.financeserver.ledger.domain.LoanDetails;
 import com.dev.julian09.financeserver.ledger.domain.RecurringExpense;
 import com.dev.julian09.financeserver.ledger.domain.SyncableEntity;
 import com.dev.julian09.financeserver.ledger.domain.Tag;
@@ -25,6 +26,7 @@ import com.dev.julian09.financeserver.ledger.repo.ChangeLogRepository;
 import com.dev.julian09.financeserver.ledger.repo.CreditCardDetailsRepository;
 import com.dev.julian09.financeserver.ledger.repo.DeferredPurchaseRepository;
 import com.dev.julian09.financeserver.ledger.repo.InstallmentRepository;
+import com.dev.julian09.financeserver.ledger.repo.LoanDetailsRepository;
 import com.dev.julian09.financeserver.ledger.repo.RecurringExpenseRepository;
 import com.dev.julian09.financeserver.ledger.repo.TagRepository;
 import com.dev.julian09.financeserver.ledger.repo.TransactionRepository;
@@ -47,11 +49,12 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 public class PullService {
 
-    // One SELECT per synced table; add a line here when a sprint adds a table (loan_details in S10)
+    // One SELECT per synced table; add a line here when a sprint adds a table
     private static final String CHANGES = """
             SELECT 'settings' AS entity, id, version FROM user_settings WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'account', id, version FROM accounts WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'creditCardDetails', id, version FROM credit_card_details WHERE user_id = :user AND version > :since
+            UNION ALL SELECT 'loanDetails', id, version FROM loan_details WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'category', id, version FROM categories WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'tag', id, version FROM tags WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'transaction', id, version FROM transactions WHERE user_id = :user AND version > :since
@@ -75,12 +78,14 @@ public class PullService {
     private final CreditCardDetailsRepository cards;
     private final DeferredPurchaseRepository deferred;
     private final InstallmentRepository installments;
+    private final LoanDetailsRepository loans;
     private final JsonMapper json;
 
     public PullService(NamedParameterJdbcTemplate jdbc, UserSettingsRepository settings, AccountRepository accounts,
                        CategoryRepository categories, TagRepository tags, TransactionRepository transactions,
                        ChangeLogRepository changeLog, RecurringExpenseRepository recurring, CreditCardDetailsRepository cards,
-                       DeferredPurchaseRepository deferred, InstallmentRepository installments, JsonMapper json) {
+                       DeferredPurchaseRepository deferred, InstallmentRepository installments, LoanDetailsRepository loans,
+                       JsonMapper json) {
         this.jdbc = jdbc;
         this.settings = settings;
         this.accounts = accounts;
@@ -92,6 +97,7 @@ public class PullService {
         this.cards = cards;
         this.deferred = deferred;
         this.installments = installments;
+        this.loans = loans;
         this.json = json;
     }
 
@@ -114,6 +120,7 @@ public class PullService {
         load(idsByEntity, "tag", tags, t -> new EntityData.TagData(t.getName(), t.isPinned()), loaded);
         load(idsByEntity, "transaction", transactions, PullService::transactionData, loaded);
         load(idsByEntity, "creditCardDetails", cards, PullService::cardData, loaded);
+        load(idsByEntity, "loanDetails", loans, PullService::loanData, loaded);
         load(idsByEntity, "deferredPurchase", deferred, PullService::deferredData, loaded);
         load(idsByEntity, "installment", installments, PullService::installmentData, loaded);
         load(idsByEntity, "recurringExpense", recurring, PullService::recurringData, loaded);
@@ -168,6 +175,12 @@ public class PullService {
     private static EntityData cardData(CreditCardDetails c) {
         return new EntityData.CreditCardDetailsData(c.getCreditLimit(), c.getCutOffDay(), c.getPaymentDay(), c.getRate(),
                 c.getRateType(), c.isFirstInstallmentInterestFree());
+    }
+
+    private static EntityData loanData(LoanDetails l) {
+        return new EntityData.LoanDetailsData(l.getMode(), l.getDisbursementAccountId(), l.getPrincipal(), l.getInstallmentsCount(),
+                l.getRate(), l.getRateType(), l.getFirstDueDate(), l.getPaymentDay(), l.getMonthlyPayment(),
+                l.getLifeInsuranceMonthly(), l.getOtherCostsMonthly(), l.getAmortization());
     }
 
     private static EntityData deferredData(DeferredPurchase d) {
