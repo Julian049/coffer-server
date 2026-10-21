@@ -40,7 +40,7 @@ Services are created in Sprint 1 from a `render.yaml` blueprint. Env vars: `SPRI
 
 ## Current state
 
-`v1.0.0` is in production (BL-3, 2026-10-19): identity (password and Google sign-in), the ledger tables V3–V9 and `/api/v1/sync/*`; V10 dropped the MVP table. The app's `v1.0.1` hotfix needed no server change. After `v1.0.0` development is paused (PO, 2026-10-19) until the PO's findings in daily use are triaged; `develop` is `1.1.0-SNAPSHOT` for Sprint 9 (reports and tags): V11 adds `categories.exclude_from_reports`, optional in the sync (a missing field means false; record components that old clients may omit must be boxed, Jackson 3 rejects a missing primitive). When the code changes, update this file accordingly.
+`v1.0.0` is in production (BL-3, 2026-10-19): identity (password and Google sign-in), the ledger tables V3–V9 and `/api/v1/sync/*`; V10 dropped the MVP table. The app's `v1.0.1` hotfix needed no server change. After `v1.0.0` development is paused (PO, 2026-10-19) until the PO's findings in daily use are triaged; `v1.1.0` (Sprint 9, 2026-10-20) is in production; `develop` is `1.2.0-SNAPSHOT` for Sprint 10 (loans). V11 adds `categories.exclude_from_reports`, optional in the sync (a missing field means false; record components that old clients may omit must be boxed, Jackson 3 rejects a missing primitive). When the code changes, update this file accordingly.
 
 ## Commands
 
