@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import com.dev.julian09.financeserver.Contract;
 import com.dev.julian09.financeserver.TestcontainersConfiguration;
+import com.dev.julian09.financeserver.sync.job.ChangeLogPurgeJob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,9 @@ class PushServiceIT {
 
     @Autowired
     JdbcTemplate jdbc;
+
+    @Autowired
+    ChangeLogPurgeJob purgeJob;
 
     private String token;
     private UUID userId;
@@ -179,6 +183,27 @@ class PushServiceIT {
         assertThat(history.get("data").get("action").asString()).isEqualTo("DELETE");
         assertThat(history.get("data").get("beforeValue").get("amount").asString()).isEqualTo("28000.0000");
         assertThat(history.get("data").get("afterValue").isNull()).isTrue();
+    }
+
+    @Test
+    void historyOlderThanNinetyDaysIsPurged() throws Exception {
+        UUID expense = UUID.randomUUID();
+        UUID old = UUID.randomUUID();
+        UUID recent = UUID.randomUUID();
+        Map<String, Object> after = expense(28000, food);
+        push(
+                change("account", account, T1, null, account("Bancolombia")),
+                change("category", food, T1, null, category("Comida", "EXPENSE", null)),
+                change("transaction", expense, T1, null, after),
+                change("changeLog", old, T1, null, history(expense, "CREATE", null, after)),
+                change("changeLog", recent, T1, null, history(expense, "UPDATE", after, after)))
+                .andExpect(status().isOk());
+        jdbc.update("UPDATE change_log SET changed_at = now() - interval '91 days' WHERE id = ?", old);
+        jdbc.update("UPDATE change_log SET changed_at = now() - interval '89 days' WHERE id = ?", recent);
+
+        assertThat(purgeJob.purge()).isGreaterThanOrEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM change_log WHERE id = ?", Integer.class, old)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM change_log WHERE id = ?", Integer.class, recent)).isOne();
     }
 
     @Test
