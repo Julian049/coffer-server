@@ -36,7 +36,12 @@ public sealed interface EntityData {
     record CategoryData(UUID parentId, @NotBlank @Size(max = 50) String name,
                         @NotNull @Pattern(regexp = "EXPENSE|INCOME") String kind, boolean isBase,
                         @Pattern(regexp = "FINANCIAL_CHARGES") String systemKey, @Size(max = 30) String icon,
-                        int sortOrder) implements EntityData {
+                        int sortOrder, Boolean excludeFromReports) implements EntityData {
+        /** Optional since openapi 1.1.0: v1.0.x apps do not send it (REQ-CAT-04). */
+        public boolean excluded() {
+            return Boolean.TRUE.equals(excludeFromReports);
+        }
+
     }
 
     record TagData(@NotBlank @Size(max = 50) String name, boolean pinned) implements EntityData {

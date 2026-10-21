@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Coffer Server API
-  version: 1.0.0
+  version: 1.1.0
   summary: Autenticación, respaldo y sincronización de Coffer.
   description: |
     Contrato del servicio en la nube de Coffer (SRS v1.0 §7.3, ADR-0012).
@@ -716,6 +716,10 @@ components:
         systemKey: { type: [string, 'null'], enum: [FINANCIAL_CHARGES, null] }
         icon: { type: [string, 'null'], maxLength: 30 }
         sortOrder: { type: integer }
+        excludeFromReports:
+          type: boolean
+          default: false
+          description: REQ-CAT-04 (1.1.0). Opcional; si falta se guarda false.
     TagData:
       type: object
       required: [name, pinned]

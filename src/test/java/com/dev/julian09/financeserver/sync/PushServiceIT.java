@@ -94,6 +94,25 @@ class PushServiceIT {
     }
 
     @Test
+    void aCategoryExcludedFromReportsSyncsBothWaysAndOlderClientsLeaveItIncluded() throws Exception {
+        UUID savings = UUID.randomUUID();
+        Map<String, Object> excluded = category("Ahorros", "EXPENSE", null);
+        excluded.put("excludeFromReports", true);
+        // A v1.0.x app does not send the field (REQ-CAT-04, openapi 1.1.0)
+        push(change("category", savings, T1, null, excluded),
+                change("category", food, T1, null, category("Comida", "EXPENSE", null)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[*].status").value(everyItem(is("APPLIED"))))
+                .andExpect(Contract.matchesComposed());
+
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andReturn().getResponse().getContentAsString());
+        Map<String, Boolean> flags = new LinkedHashMap<>();
+        pulled.get("changes").forEach(c -> flags.put(c.get("id").asText(), c.get("data").get("excludeFromReports").asBoolean()));
+        assertThat(flags).containsEntry(savings.toString(), true).containsEntry(food.toString(), false);
+    }
+
+    @Test
     void theHistoryOfATransactionSyncsBothWays() throws Exception {
         UUID expense = UUID.randomUUID();
         UUID created = UUID.randomUUID();
