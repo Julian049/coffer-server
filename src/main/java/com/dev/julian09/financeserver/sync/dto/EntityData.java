@@ -23,7 +23,8 @@ public sealed interface EntityData {
 
     record SettingsData(@Min(0) @Max(30) int reminderLeadDays, boolean notificationsEnabled,
                         @NotNull @Pattern(regexp = "AVAILABLE|NET") String homeBalanceView,
-                        @Min(0) @Max(2) int amountDecimals, @NotNull JsonNode homeCards) implements EntityData {
+                        @Min(0) @Max(2) int amountDecimals, @NotNull JsonNode homeCards,
+                        @Pattern(regexp = "PERIOD|TOTAL_DEBT") String netBalanceMode) implements EntityData {
     }
 
     record AccountData(@NotBlank @Size(max = 60) String name,
@@ -35,7 +36,7 @@ public sealed interface EntityData {
 
     record CategoryData(UUID parentId, @NotBlank @Size(max = 50) String name,
                         @NotNull @Pattern(regexp = "EXPENSE|INCOME") String kind, boolean isBase,
-                        @Pattern(regexp = "FINANCIAL_CHARGES") String systemKey, @Size(max = 30) String icon,
+                        @Pattern(regexp = "FINANCIAL_CHARGES|OPENING_BALANCE") String systemKey, @Size(max = 30) String icon,
                         int sortOrder, Boolean excludeFromReports) implements EntityData {
         /** Optional since openapi 1.1.0: v1.0.x apps do not send it (REQ-CAT-04). */
         public boolean excluded() {
@@ -55,7 +56,8 @@ public sealed interface EntityData {
                            @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal interest,
                            @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal fees, UUID installmentId,
                            UUID recurringId,
-                           @Pattern(regexp = "CARD_MIN|CARD_TOTAL|LOAN_INSTALL|LOAN_EXTRA") String paymentKind) implements EntityData {
+                           @Pattern(regexp = "CARD_MIN|CARD_TOTAL|LOAN_INSTALL|LOAN_EXTRA") String paymentKind,
+                           @Size(max = 200) String concept) implements EntityData {
     }
 
     record RecurringExpenseData(@NotBlank @Size(max = 60) String name,

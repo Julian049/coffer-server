@@ -13,7 +13,7 @@ This repository is the cloud service of **Coffer** (formerly "Finance App"), cal
 | Requirements (SRS v1.0) | `../docs/01-requirements/` |
 | Architecture (arc42) and ADRs (Spring Boot, Flyway, sync, auth…) | `../docs/02-architecture/architecture.md`, `../docs/02-architecture/adr/` |
 | Detailed design: packages, classes, algorithms, config properties | `../docs/03-design/detailed-design.md` |
-| **Physical schema, data dictionary and the exact Flyway scripts V3–V12** | `../docs/03-design/data-model.md` |
+| **Physical schema, data dictionary and the exact Flyway scripts V3–V13** | `../docs/03-design/data-model.md` |
 | Sequence diagrams (push/pull, auth…) | `../docs/03-design/sequences/` |
 | **API contract** (implement exactly this) | `../docs/04-api/openapi.yml` |
 | Test plan | `../docs/05-test/test-plan.md` |
@@ -40,7 +40,7 @@ Services are created in Sprint 1 from a `render.yaml` blueprint. Env vars: `SPRI
 
 ## Current state
 
-`v1.0.0` is in production (BL-3, 2026-10-19): identity (password and Google sign-in), the ledger tables V3–V9 and `/api/v1/sync/*`; V10 dropped the MVP table. The app's `v1.0.1` hotfix needed no server change. After `v1.0.0` development is paused (PO, 2026-10-19) until the PO's findings in daily use are triaged; `v1.1.0` (Sprint 9, 2026-10-20) is in production; `v1.2.0` (Sprint 10, 2026-10-20) is in production; `develop` is `1.3.0-SNAPSHOT` for Sprint 11. Loans: `loanDetails` syncs (V12 adds `amortization`, optional, default `FIXED_PRINCIPAL`). V11 adds `categories.exclude_from_reports`, optional in the sync (a missing field means false; record components that old clients may omit must be boxed, Jackson 3 rejects a missing primitive). When the code changes, update this file accordingly.
+`v1.0.0` is in production (BL-3, 2026-10-19): identity (password and Google sign-in), the ledger tables V3–V9 and `/api/v1/sync/*`; V10 dropped the MVP table. The app's `v1.0.1` hotfix needed no server change. After `v1.0.0` development is paused (PO, 2026-10-19) until the PO's findings in daily use are triaged; `v1.1.0` (Sprint 9, 2026-10-20) is in production; `v1.2.0` (Sprint 10, 2026-10-20) is in production; `develop` is `1.3.0-SNAPSHOT` for Sprint 11. Loans: `loanDetails` syncs (V12 adds `amortization`, optional, default `FIXED_PRINCIPAL`). `v1.3.0` (Sprint 11) is in production; `v1.4.0` (Sprints 12–13, one version) is in production with V13. V13 adds `transactions.concept` (a transfer's note apart from its title) and `user_settings.net_balance_mode` (`PERIOD`/`TOTAL_DEBT`; a push without it keeps the stored mode through `COALESCE`), and `OPENING_BALANCE` joins `FINANCIAL_CHARGES` as a category `systemKey`. V11 adds `categories.exclude_from_reports`, optional in the sync (a missing field means false; record components that old clients may omit must be boxed, Jackson 3 rejects a missing primitive). When the code changes, update this file accordingly.
 
 ## Commands
 
