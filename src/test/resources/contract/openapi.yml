@@ -195,6 +195,7 @@ paths:
           description: Cuenta eliminada.
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ConfirmationFailed' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /api/v1/sync/push:
@@ -342,6 +343,11 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    ConfirmationFailed:
+      description: La contraseña o el token de Google no confirman la identidad (`FIN-CONFIRMATION`). La sesión sigue válida.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Conflict:
       description: Nombre de usuario o correo ya registrados (`FIN-CONFLICT`).
       content:
@@ -418,7 +424,7 @@ components:
         instance: { type: string }
         code:
           type: string
-          enum: [FIN-VALIDATION, FIN-AUTH-INVALID, FIN-AUTH-REVOKED, FIN-CONFLICT, FIN-RATE-LIMIT, FIN-INTERNAL]
+          enum: [FIN-VALIDATION, FIN-AUTH-INVALID, FIN-AUTH-REVOKED, FIN-CONFIRMATION, FIN-CONFLICT, FIN-RATE-LIMIT, FIN-INTERNAL]
     ValidationProblem:
       allOf:
         - $ref: '#/components/schemas/Problem'

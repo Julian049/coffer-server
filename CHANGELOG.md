@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `DELETE /api/v1/me` (S14-H01, #82): deletes the account and everything it owns after the password or, for Google-only accounts, a fresh Google ID token; limited to 5 attempts per minute. No migration: every user table already cascades from `users` (openapi 1.4.0)
+- `DELETE /api/v1/me` (S14-H01, #82): deletes the account and everything it owns after the password or, for Google-only accounts, a fresh Google ID token (wrong proof: 403 `FIN-CONFIRMATION`, so the app does not read it as an expired session); limited to 5 attempts per minute. No migration: every user table already cascades from `users` (openapi 1.4.0)
 
 ## [1.4.0] - 2026-10-22
 

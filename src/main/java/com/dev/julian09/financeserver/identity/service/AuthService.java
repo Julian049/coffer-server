@@ -76,7 +76,7 @@ public class AuthService {
                 || request.idToken() != null && user.getGoogleSubject() != null
                 && google.verify(request.idToken()).filter(i -> i.subject().equals(user.getGoogleSubject())).isPresent();
         if (!confirmed) {
-            throw new ApiException(ErrorCode.AUTH_INVALID, "No pudimos confirmar tu identidad.");
+            throw new ApiException(ErrorCode.CONFIRMATION, "No pudimos confirmar tu identidad.");
         }
         users.delete(userId);
     }

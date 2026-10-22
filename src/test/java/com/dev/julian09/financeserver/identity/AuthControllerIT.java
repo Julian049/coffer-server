@@ -219,8 +219,8 @@ class AuthControllerIT {
         String userId = session.get("user").get("id").asText();
 
         deleteMe(bearer, Map.of()).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("FIN-VALIDATION"));
-        deleteMe(bearer, Map.of("password", "otra-clave-9")).andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("FIN-AUTH-INVALID"));
+        deleteMe(bearer, Map.of("password", "otra-clave-9")).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FIN-CONFIRMATION")).andExpect(Contract.matches());
         mvc.perform(get("/api/v1/me").header("Authorization", bearer)).andExpect(status().isOk());
 
         deleteMe(bearer, Map.of("password", "clave-segura-1")).andExpect(status().isNoContent()).andExpect(Contract.matches());
@@ -239,8 +239,8 @@ class AuthControllerIT {
                 .andReturn().getResponse().getContentAsString().transform(json::readTree);
         String bearer = "Bearer " + session.get("accessToken").asText();
 
-        deleteMe(bearer, Map.of("password", "clave-segura-1")).andExpect(status().isUnauthorized());
-        deleteMe(bearer, Map.of("idToken", GoogleTokens.valid("google-" + UUID.randomUUID(), email))).andExpect(status().isUnauthorized());
+        deleteMe(bearer, Map.of("password", "clave-segura-1")).andExpect(status().isForbidden());
+        deleteMe(bearer, Map.of("idToken", GoogleTokens.valid("google-" + UUID.randomUUID(), email))).andExpect(status().isForbidden());
         deleteMe(bearer, Map.of("idToken", GoogleTokens.valid(subject, email))).andExpect(status().isNoContent());
         google(GoogleTokens.valid(subject, email)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.id").value(org.hamcrest.Matchers.not(session.get("user").get("id").asText())));
@@ -253,7 +253,7 @@ class AuthControllerIT {
                 .andReturn().getResponse().getContentAsString().transform(json::readTree);
         String bearer = "Bearer " + session.get("accessToken").asText();
         for (int i = 0; i < 5; i++) {
-            deleteMe(bearer, Map.of("password", "mala-clave-" + i)).andExpect(status().isUnauthorized());
+            deleteMe(bearer, Map.of("password", "mala-clave-" + i)).andExpect(status().isForbidden());
         }
         deleteMe(bearer, Map.of("password", "clave-segura-1")).andExpect(status().isTooManyRequests());
     }
