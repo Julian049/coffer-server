@@ -7,6 +7,8 @@ public enum ErrorCode {
     VALIDATION("FIN-VALIDATION", HttpStatus.BAD_REQUEST, "validation", "Datos inválidos"),
     AUTH_INVALID("FIN-AUTH-INVALID", HttpStatus.UNAUTHORIZED, "auth-invalid", "Credenciales inválidas"),
     AUTH_REVOKED("FIN-AUTH-REVOKED", HttpStatus.UNAUTHORIZED, "auth-revoked", "Sesión revocada"),
+    // The session is fine but the extra proof (password, Google token) is not: the app must not treat it as an expired session
+    CONFIRMATION("FIN-CONFIRMATION", HttpStatus.FORBIDDEN, "confirmation", "Confirmación incorrecta"),
     CONFLICT("FIN-CONFLICT", HttpStatus.CONFLICT, "conflict", "El recurso ya existe"),
     RATE_LIMIT("FIN-RATE-LIMIT", HttpStatus.TOO_MANY_REQUESTS, "rate-limit", "Demasiados intentos"),
     INTERNAL("FIN-INTERNAL", HttpStatus.INTERNAL_SERVER_ERROR, "internal", "Error interno"),

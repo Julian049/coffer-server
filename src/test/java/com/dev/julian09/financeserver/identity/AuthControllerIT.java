@@ -15,6 +15,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -25,6 +26,7 @@ import tools.jackson.databind.json.JsonMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -55,6 +57,9 @@ class AuthControllerIT {
 
     @Autowired
     JsonMapper json;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     @Test
     void registerReturnsASessionAndMeShowsTheProfile() throws Exception {
@@ -203,6 +208,59 @@ class AuthControllerIT {
         mvc.perform(post("/api/v1/auth/logout").header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isNoContent());
         refresh(session.get("refreshToken").asText()).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deletingTheAccountNeedsProofAndRemovesEverything() throws Exception {
+        String username = newUsername();
+        JsonNode session = register(username, username + "@correo.com", "clave-segura-1")
+                .andReturn().getResponse().getContentAsString().transform(json::readTree);
+        String bearer = "Bearer " + session.get("accessToken").asText();
+        String userId = session.get("user").get("id").asText();
+
+        deleteMe(bearer, Map.of()).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("FIN-VALIDATION"));
+        deleteMe(bearer, Map.of("password", "otra-clave-9")).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FIN-CONFIRMATION")).andExpect(Contract.matches());
+        mvc.perform(get("/api/v1/me").header("Authorization", bearer)).andExpect(status().isOk());
+
+        deleteMe(bearer, Map.of("password", "clave-segura-1")).andExpect(status().isNoContent()).andExpect(Contract.matches());
+
+        assertThat(jdbc.queryForObject("select count(*) from users where id = ?::uuid", Integer.class, userId)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from refresh_tokens where user_id = ?::uuid", Integer.class, userId)).isZero();
+        login(username, "clave-segura-1", "10.9.9.1").andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/me").header("Authorization", bearer)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void aGoogleOnlyAccountIsDeletedWithItsOwnIdTokenOnly() throws Exception {
+        String email = newUsername() + "@gmail.com";
+        String subject = "google-" + UUID.randomUUID();
+        JsonNode session = google(GoogleTokens.valid(subject, email))
+                .andReturn().getResponse().getContentAsString().transform(json::readTree);
+        String bearer = "Bearer " + session.get("accessToken").asText();
+
+        deleteMe(bearer, Map.of("password", "clave-segura-1")).andExpect(status().isForbidden());
+        deleteMe(bearer, Map.of("idToken", GoogleTokens.valid("google-" + UUID.randomUUID(), email))).andExpect(status().isForbidden());
+        deleteMe(bearer, Map.of("idToken", GoogleTokens.valid(subject, email))).andExpect(status().isNoContent());
+        google(GoogleTokens.valid(subject, email)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.id").value(org.hamcrest.Matchers.not(session.get("user").get("id").asText())));
+    }
+
+    @Test
+    void guessingThePasswordWhenDeletingIsRateLimited() throws Exception {
+        String username = newUsername();
+        JsonNode session = register(username, username + "@correo.com", "clave-segura-1")
+                .andReturn().getResponse().getContentAsString().transform(json::readTree);
+        String bearer = "Bearer " + session.get("accessToken").asText();
+        for (int i = 0; i < 5; i++) {
+            deleteMe(bearer, Map.of("password", "mala-clave-" + i)).andExpect(status().isForbidden());
+        }
+        deleteMe(bearer, Map.of("password", "clave-segura-1")).andExpect(status().isTooManyRequests());
+    }
+
+    private ResultActions deleteMe(String bearer, Map<String, String> body) throws Exception {
+        return mvc.perform(delete("/api/v1/me").header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)));
     }
 
     @Test
