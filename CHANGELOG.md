@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- README and `LICENSE` point to the legal pages published from `coffer-app` with GitHub Pages, because `coffer-docs` goes private
+
 ## [1.5.0] - 2026-10-22
 
 ### Changed
