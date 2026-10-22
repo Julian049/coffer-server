@@ -6,6 +6,7 @@ import com.dev.julian09.financeserver.shared.error.ApiException;
 import com.dev.julian09.financeserver.shared.error.ErrorCode;
 import com.dev.julian09.financeserver.identity.domain.User;
 import com.dev.julian09.financeserver.identity.dto.AuthResponse;
+import com.dev.julian09.financeserver.identity.dto.DeleteAccountRequest;
 import com.dev.julian09.financeserver.identity.dto.GoogleLoginRequest;
 import com.dev.julian09.financeserver.identity.dto.LoginRequest;
 import com.dev.julian09.financeserver.identity.dto.RefreshRequest;
@@ -60,6 +61,24 @@ public class AuthService {
 
     public void logout(RefreshRequest request, UUID userId) {
         tokens.revoke(request.refreshToken(), userId);
+    }
+
+    /** S14-H01: deletes the account and everything it owns after the user proves who they are again. */
+    @Transactional
+    public void deleteAccount(DeleteAccountRequest request, UUID userId, String clientIp) {
+        if (request.password() == null && request.idToken() == null) {
+            throw new ApiException(ErrorCode.VALIDATION, "Confirma con tu contraseña o con tu cuenta de Google.");
+        }
+        // A stolen access token must not be able to guess the password
+        rateLimiter.check(clientIp, "delete:" + userId);
+        User user = users.get(userId);
+        boolean confirmed = request.password() != null && users.passwordMatches(user, request.password())
+                || request.idToken() != null && user.getGoogleSubject() != null
+                && google.verify(request.idToken()).filter(i -> i.subject().equals(user.getGoogleSubject())).isPresent();
+        if (!confirmed) {
+            throw new ApiException(ErrorCode.AUTH_INVALID, "No pudimos confirmar tu identidad.");
+        }
+        users.delete(userId);
     }
 
     public UserDto me(UUID userId) {

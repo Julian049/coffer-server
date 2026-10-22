@@ -86,6 +86,18 @@ public class UserService {
         return hasPassword && matches ? user : Optional.empty();
     }
 
+    /** False for Google-only users, who have no hash to compare. */
+    public boolean passwordMatches(User user, String password) {
+        String hash = user.getPasswordHash();
+        return hash != null && hash.startsWith("$2") && passwords.matches(password, hash);
+    }
+
+    /** The database cascades the delete to every row the user owns (REQ-AUT-04, data-model §4). */
+    @Transactional
+    public void delete(UUID id) {
+        users.deleteById(id);
+    }
+
     @Transactional(readOnly = true)
     public User get(UUID id) {
         return users.findById(id).orElseThrow(() -> new ApiException(ErrorCode.AUTH_INVALID, "Inicia sesión de nuevo."));
