@@ -115,7 +115,7 @@ Las variables (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_PRIVATE_KEY`, `JWT_PUBLI
 
 ## Licencia
 
-Código propietario: **todos los derechos reservados** (ver [`LICENSE`](LICENSE)). Las bibliotecas de terceros conservan sus propias licencias: [avisos de terceros](https://github.com/Julian049/coffer-docs/blob/develop/10-legal/third-party-notices.md). [Política de privacidad](https://julian049.github.io/coffer-docs/10-legal/privacy-policy.html) · [Términos de uso](https://julian049.github.io/coffer-docs/10-legal/terms.html).
+Código propietario: **todos los derechos reservados** (ver [`LICENSE`](LICENSE)). Las bibliotecas de terceros conservan sus propias licencias: [avisos de terceros](https://julian049.github.io/coffer-app/third-party-notices.html). [Política de privacidad](https://julian049.github.io/coffer-app/privacy-policy.html) · [Términos de uso](https://julian049.github.io/coffer-app/terms.html).
 
 ## Autor
 
