@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-22
+
+### Changed
+
+- Version 1.5.0 (Sprint 14)
+- Proprietary `LICENSE` (all rights reserved) and the README license section (S14-H03, coffer-app#148)
+
+### Added
+
+- `DELETE /api/v1/me` (S14-H01, #82): deletes the account and everything it owns after the password or, for Google-only accounts, a fresh Google ID token (wrong proof: 403 `FIN-CONFIRMATION`, so the app does not read it as an expired session); limited to 5 attempts per minute. No migration: every user table already cascades from `users` (openapi 1.4.0)
+
 ## [1.4.0] - 2026-10-22
 
 ### Added
