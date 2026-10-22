@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-22
+
 ### Changed
 
+- Version 1.5.0 (Sprint 14)
 - Proprietary `LICENSE` (all rights reserved) and the README license section (S14-H03, coffer-app#148)
 
 ### Added
