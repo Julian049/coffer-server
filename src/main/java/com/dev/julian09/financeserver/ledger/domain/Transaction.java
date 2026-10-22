@@ -37,6 +37,10 @@ public class Transaction extends SyncableEntity {
     @Column(length = 500)
     private String note;
 
+    // Transfers only, apart from the title (note); S12-H01
+    @Column(length = 200)
+    private String concept;
+
     @Column(nullable = false)
     private short installments;
 
@@ -76,6 +80,8 @@ public class Transaction extends SyncableEntity {
     public UUID getTagId() { return tagId; }
 
     public String getNote() { return note; }
+
+    public String getConcept() { return concept; }
 
     public short getInstallments() { return installments; }
 

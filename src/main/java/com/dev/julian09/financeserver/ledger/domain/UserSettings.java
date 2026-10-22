@@ -28,6 +28,9 @@ public class UserSettings extends SyncableEntity {
     @Column(name = "home_cards", nullable = false)
     private String homeCards;
 
+    @Column(name = "net_balance_mode", nullable = false, length = 12)
+    private String netBalanceMode;
+
     protected UserSettings() {
     }
 
@@ -40,4 +43,6 @@ public class UserSettings extends SyncableEntity {
     public short getAmountDecimals() { return amountDecimals; }
 
     public String getHomeCards() { return homeCards; }
+
+    public String getNetBalanceMode() { return netBalanceMode; }
 }

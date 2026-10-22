@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- V13 (S12, #78): `transactions.concept`, a transfer's note apart from its title, and `user_settings.net_balance_mode` (`PERIOD` or `TOTAL_DEBT`, REQ-CTA-08); both sync as `concept` and `netBalanceMode` (openapi 1.3.0). Settings pushed without the mode keep the stored one
+- `OPENING_BALANCE` system category key, for the movement that carries an account's opening balance (S12-H03)
+
 ## [1.3.0] - 2026-10-21
 
 ### Added

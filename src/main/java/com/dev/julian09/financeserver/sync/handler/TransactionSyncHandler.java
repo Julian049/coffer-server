@@ -18,17 +18,17 @@ public class TransactionSyncHandler extends SyncHandler<TransactionData> {
     private static final String UPSERT = """
             INSERT INTO transactions AS t (id, user_id, type, amount, occurred_at, account_id, destination_account_id,
                 category_id, tag_id, note, installments, principal, interest, fees, installment_id, recurring_id,
-                payment_kind, created_at, updated_at, deleted_at)
+                payment_kind, concept, created_at, updated_at, deleted_at)
             VALUES (:id, :userId, :type, :amount, :occurredAt, :accountId, :destinationAccountId, :categoryId, :tagId,
                 :note, :installments, :principal, :interest, :fees, :installmentId, :recurringId, :paymentKind,
-                :createdAt, :updatedAt, :deletedAt)
+                :concept, :createdAt, :updatedAt, :deletedAt)
             ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, amount = EXCLUDED.amount,
                 occurred_at = EXCLUDED.occurred_at, account_id = EXCLUDED.account_id,
                 destination_account_id = EXCLUDED.destination_account_id, category_id = EXCLUDED.category_id,
                 tag_id = EXCLUDED.tag_id, note = EXCLUDED.note, installments = EXCLUDED.installments,
                 principal = EXCLUDED.principal, interest = EXCLUDED.interest, fees = EXCLUDED.fees,
                 installment_id = EXCLUDED.installment_id, recurring_id = EXCLUDED.recurring_id,
-                payment_kind = EXCLUDED.payment_kind, updated_at = EXCLUDED.updated_at, deleted_at = EXCLUDED.deleted_at
+                payment_kind = EXCLUDED.payment_kind, concept = EXCLUDED.concept, updated_at = EXCLUDED.updated_at, deleted_at = EXCLUDED.deleted_at
             WHERE t.user_id = EXCLUDED.user_id AND EXCLUDED.updated_at > t.updated_at
             RETURNING version
             """;
@@ -111,6 +111,7 @@ public class TransactionSyncHandler extends SyncHandler<TransactionData> {
                 .addValue("fees", d.fees())
                 .addValue("installmentId", d.installmentId())
                 .addValue("recurringId", d.recurringId())
-                .addValue("paymentKind", d.paymentKind()));
+                .addValue("paymentKind", d.paymentKind())
+                .addValue("concept", d.concept()));
     }
 }

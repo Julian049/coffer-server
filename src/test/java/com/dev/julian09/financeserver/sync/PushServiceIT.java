@@ -117,6 +117,34 @@ class PushServiceIT {
     }
 
     @Test
+    void aTransferConceptAndTheNetBalanceModeSyncAndOlderClientsKeepTheStoredMode() throws Exception {
+        UUID cash = UUID.randomUUID();
+        UUID withdrawal = UUID.randomUUID();
+        Map<String, Object> transfer = new LinkedHashMap<>(expense(100000, null));
+        transfer.put("type", "TRANSFER");
+        transfer.put("destinationAccountId", cash.toString());
+        transfer.put("note", "Retiro cajero");
+        transfer.put("concept", "Para el efectivo de la semana");
+        Map<String, Object> totalDebt = new LinkedHashMap<>(settings());
+        totalDebt.put("netBalanceMode", "TOTAL_DEBT");
+        push(change("account", account, T1, null, account("Bancolombia")), change("account", cash, T1, null, account("Efectivo")),
+                change("transaction", withdrawal, T1, null, transfer), change("settings", userId, T1, null, totalDebt))
+                .andExpect(jsonPath("$.results[*].status").value(everyItem(is("APPLIED"))))
+                .andExpect(Contract.matchesComposed());
+        // A v1.3.x app sends its settings without the mode (openapi 1.3.0): the stored one stays
+        push(change("settings", userId, T2, null, settings()))
+                .andExpect(jsonPath("$.results[0].status").value("APPLIED"));
+
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andReturn().getResponse().getContentAsString());
+        Map<String, JsonNode> byEntity = new LinkedHashMap<>();
+        pulled.get("changes").forEach(c -> byEntity.put(c.get("entity").asText(), c.get("data")));
+        assertThat(byEntity.get("transaction").get("concept").asText()).isEqualTo("Para el efectivo de la semana");
+        assertThat(byEntity.get("transaction").get("note").asText()).isEqualTo("Retiro cajero");
+        assertThat(byEntity.get("settings").get("netBalanceMode").asText()).isEqualTo("TOTAL_DEBT");
+    }
+
+    @Test
     void aLoanWithItsTermsAndPlanSyncsBothWaysAndEachModeNeedsItsFields() throws Exception {
         UUID loan = UUID.randomUUID();
         UUID simple = UUID.randomUUID();
