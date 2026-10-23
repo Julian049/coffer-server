@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- V14: `user_settings.loan_payment_category_id` and `accounts.include_in_net`, both synced and optional for older apps (openapi 1.5.0)
+
 ### Changed
 
+- The net balance mode `TOTAL_DEBT` becomes `CUSTOM`; apps that still send `TOTAL_DEBT` are stored as `CUSTOM`
 - Links to `coffer-docs` removed from the README and the issue template, because it is now private; a Gitleaks workflow scans every PR and push for secrets
 
 ### Changed

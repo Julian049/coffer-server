@@ -40,6 +40,7 @@ class PushServiceIT {
 
     private static final Instant T1 = Instant.parse("2026-10-16T10:00:00Z");
     private static final Instant T2 = Instant.parse("2026-10-16T11:00:00Z");
+    private static final Instant T3 = Instant.parse("2026-10-16T12:00:00Z");
 
     @Autowired
     MockMvc mvc;
@@ -117,6 +118,41 @@ class PushServiceIT {
     }
 
     @Test
+    void theLoanPaymentCategoryAndTheNetFlagSyncAndOlderClientsKeepThem() throws Exception {
+        UUID debts = UUID.randomUUID();
+        UUID salary = UUID.randomUUID();
+        push(change("category", debts, T1, null, category("Deudas", "EXPENSE", null)),
+                change("category", salary, T1, null, category("Salario", "INCOME", null)),
+                change("account", account, T1, null, accountNotInNet("Visa")))
+                .andExpect(jsonPath("$.results[*].status").value(everyItem(is("APPLIED"))))
+                .andExpect(Contract.matchesComposed());
+        Map<String, Object> custom = new LinkedHashMap<>(settings());
+        custom.put("netBalanceMode", "CUSTOM");
+        custom.put("loanPaymentCategoryId", debts.toString());
+        push(change("settings", userId, T1, null, custom)).andExpect(jsonPath("$.results[0].status").value("APPLIED"));
+        // A v1.5.x app sends neither field: the stored ones stay
+        push(change("settings", userId, T2, null, settings())).andExpect(jsonPath("$.results[0].status").value("APPLIED"));
+        // The category must be an expense of the user
+        Map<String, Object> income = new LinkedHashMap<>(settings());
+        income.put("loanPaymentCategoryId", salary.toString());
+        push(change("settings", userId, T3, null, income)).andExpect(jsonPath("$.results[0].status").value("REJECTED"));
+
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andReturn().getResponse().getContentAsString());
+        Map<String, JsonNode> byEntity = new LinkedHashMap<>();
+        pulled.get("changes").forEach(c -> byEntity.put(c.get("entity").asText(), c.get("data")));
+        assertThat(byEntity.get("settings").get("loanPaymentCategoryId").asText()).isEqualTo(debts.toString());
+        assertThat(byEntity.get("settings").get("netBalanceMode").asText()).isEqualTo("CUSTOM");
+        assertThat(byEntity.get("account").get("includeInNet").asBoolean()).isFalse();
+    }
+
+    private Map<String, Object> accountNotInNet(String name) {
+        Map<String, Object> a = new LinkedHashMap<>(account(name));
+        a.put("includeInNet", false);
+        return a;
+    }
+
+    @Test
     void aTransferConceptAndTheNetBalanceModeSyncAndOlderClientsKeepTheStoredMode() throws Exception {
         UUID cash = UUID.randomUUID();
         UUID withdrawal = UUID.randomUUID();
@@ -141,7 +177,7 @@ class PushServiceIT {
         pulled.get("changes").forEach(c -> byEntity.put(c.get("entity").asText(), c.get("data")));
         assertThat(byEntity.get("transaction").get("concept").asText()).isEqualTo("Para el efectivo de la semana");
         assertThat(byEntity.get("transaction").get("note").asText()).isEqualTo("Retiro cajero");
-        assertThat(byEntity.get("settings").get("netBalanceMode").asText()).isEqualTo("TOTAL_DEBT");
+        assertThat(byEntity.get("settings").get("netBalanceMode").asText()).isEqualTo("CUSTOM");
     }
 
     @Test

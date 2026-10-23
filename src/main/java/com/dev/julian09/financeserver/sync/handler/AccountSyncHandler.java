@@ -13,12 +13,12 @@ import org.springframework.stereotype.Component;
 public class AccountSyncHandler extends SyncHandler<AccountData> {
 
     private static final String UPSERT = """
-            INSERT INTO accounts AS t (id, user_id, name, type, initial_balance, include_in_total, active, deactivated_at,
+            INSERT INTO accounts AS t (id, user_id, name, type, initial_balance, include_in_total, include_in_net, active, deactivated_at,
                 institution, icon, color, sort_order, created_at, updated_at, deleted_at)
-            VALUES (:id, :userId, :name, :type, :initialBalance, :includeInTotal, :active, :deactivatedAt, :institution,
+            VALUES (:id, :userId, :name, :type, :initialBalance, :includeInTotal, :includeInNet, :active, :deactivatedAt, :institution,
                 :icon, :color, :sortOrder, :createdAt, :updatedAt, :deletedAt)
             ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type,
-                initial_balance = EXCLUDED.initial_balance, include_in_total = EXCLUDED.include_in_total,
+                initial_balance = EXCLUDED.initial_balance, include_in_total = EXCLUDED.include_in_total, include_in_net = EXCLUDED.include_in_net,
                 active = EXCLUDED.active, deactivated_at = EXCLUDED.deactivated_at, institution = EXCLUDED.institution,
                 icon = EXCLUDED.icon, color = EXCLUDED.color, sort_order = EXCLUDED.sort_order,
                 updated_at = EXCLUDED.updated_at, deleted_at = EXCLUDED.deleted_at
@@ -62,6 +62,7 @@ public class AccountSyncHandler extends SyncHandler<AccountData> {
                 .addValue("type", d.type())
                 .addValue("initialBalance", d.initialBalance())
                 .addValue("includeInTotal", d.includeInTotal())
+                .addValue("includeInNet", d.inNet())
                 .addValue("active", d.active())
                 .addValue("deactivatedAt", utc(d.deactivatedAt()))
                 .addValue("institution", d.institution())

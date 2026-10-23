@@ -150,7 +150,8 @@ public class PullService {
 
     private EntityData settingsData(UserSettings s) {
         return new EntityData.SettingsData(s.getReminderLeadDays(), s.isNotificationsEnabled(), s.getHomeBalanceView(),
-                s.getAmountDecimals(), json.readTree(s.getHomeCards()), s.getNetBalanceMode());
+                s.getAmountDecimals(), json.readTree(s.getHomeCards()), s.getNetBalanceMode(),
+                s.getLoanPaymentCategoryId());
     }
 
     private EntityData changeLogData(ChangeLog c) {
@@ -164,7 +165,8 @@ public class PullService {
 
     private static EntityData accountData(Account a) {
         return new EntityData.AccountData(a.getName(), a.getType(), a.getInitialBalance(), a.isIncludeInTotal(), a.isActive(),
-                a.getDeactivatedAt(), a.getInstitution(), a.getIcon(), a.getColor(), a.getSortOrder());
+                a.getDeactivatedAt(), a.getInstitution(), a.getIcon(), a.getColor(), a.getSortOrder(),
+                a.isIncludeInNet());
     }
 
     private static EntityData categoryData(Category c) {
