@@ -1,5 +1,7 @@
 package com.dev.julian09.financeserver.ledger.domain;
 
+import java.util.UUID;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -31,6 +33,9 @@ public class UserSettings extends SyncableEntity {
     @Column(name = "net_balance_mode", nullable = false, length = 12)
     private String netBalanceMode;
 
+    @Column(name = "loan_payment_category_id")
+    private UUID loanPaymentCategoryId;
+
     protected UserSettings() {
     }
 
@@ -45,4 +50,6 @@ public class UserSettings extends SyncableEntity {
     public String getHomeCards() { return homeCards; }
 
     public String getNetBalanceMode() { return netBalanceMode; }
+
+    public UUID getLoanPaymentCategoryId() { return loanPaymentCategoryId; }
 }
