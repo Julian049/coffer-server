@@ -24,14 +24,20 @@ public sealed interface EntityData {
     record SettingsData(@Min(0) @Max(30) int reminderLeadDays, boolean notificationsEnabled,
                         @NotNull @Pattern(regexp = "AVAILABLE|NET") String homeBalanceView,
                         @Min(0) @Max(2) int amountDecimals, @NotNull JsonNode homeCards,
-                        @Pattern(regexp = "PERIOD|TOTAL_DEBT") String netBalanceMode) implements EntityData {
+                        @Pattern(regexp = "PERIOD|CUSTOM|TOTAL_DEBT") String netBalanceMode, UUID loanPaymentCategoryId) implements EntityData {
     }
 
     record AccountData(@NotBlank @Size(max = 60) String name,
                        @NotNull @Pattern(regexp = "CASH|DEBIT|SAVINGS|CREDIT_CARD|LOAN") String type,
                        @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal initialBalance,
                        boolean includeInTotal, boolean active, Instant deactivatedAt, @Size(max = 60) String institution,
-                       @Size(max = 30) String icon, @Pattern(regexp = "^#[0-9A-F]{6}$") String color, int sortOrder) implements EntityData {
+                       @Size(max = 30) String icon, @Pattern(regexp = "^#[0-9A-F]{6}$") String color, int sortOrder,
+                       Boolean includeInNet) implements EntityData {
+        /** Optional since openapi 1.5.0: older apps do not send it, and every debt then counts. */
+        public boolean inNet() {
+            return !Boolean.FALSE.equals(includeInNet);
+        }
+
     }
 
     record CategoryData(UUID parentId, @NotBlank @Size(max = 50) String name,

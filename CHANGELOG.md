@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-23
+
+### Added
+
+- V14 (S15, #89): `user_settings.loan_payment_category_id` (the expense category that receives the principal of loan installments) and `accounts.include_in_net` (the custom net balance), both synced and optional for older apps; `openapi.yml` 1.5.0
+
+### Changed
+
+- Version 1.6.0 (Sprint 15)
+- The net balance mode `TOTAL_DEBT` becomes `CUSTOM`; apps that still send `TOTAL_DEBT` are stored as `CUSTOM`
+- Links to `coffer-docs` removed from the README and the issue template, because it is now private; a Gitleaks workflow scans every PR and push for secrets
+- README and `LICENSE` point to the legal pages published from `coffer-app` with GitHub Pages, because `coffer-docs` is now private
+
 ## [1.5.0] - 2026-10-22
 
 ### Changed

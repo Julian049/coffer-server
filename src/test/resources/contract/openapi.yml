@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Coffer Server API
-  version: 1.4.0
+  version: 1.5.0
   summary: Autenticación, respaldo y sincronización de Coffer.
   description: |
     Contrato del servicio en la nube de Coffer (SRS v1.0 §7.3, ADR-0012).
@@ -691,9 +691,13 @@ components:
               visible: { type: boolean }
         netBalanceMode:
           type: string
-          enum: [PERIOD, TOTAL_DEBT]
+          enum: [PERIOD, CUSTOM, TOTAL_DEBT]
           default: PERIOD
-          description: REQ-CTA-08 (1.3.0). Saldo neto = disponible − cuotas del periodo (PERIOD) o − deuda total (TOTAL_DEBT). Opcional; si falta se conserva el guardado.
+          description: REQ-CTA-08 (1.3.0). Saldo neto = disponible − cuotas del periodo (PERIOD) o − las deudas con includeInNet (CUSTOM, 1.5.0). TOTAL_DEBT, el valor anterior, se acepta y se guarda como CUSTOM. Opcional; si falta se conserva el guardado.
+        loanPaymentCategoryId:
+          type: [string, 'null']
+          format: uuid
+          description: Categoría de gasto que recibe el capital de las cuotas de préstamo (1.5.0). Opcional; si falta se conserva la guardada.
     AccountData:
       type: object
       required: [name, type, initialBalance, includeInTotal, active, sortOrder]
@@ -709,6 +713,7 @@ components:
         icon: { type: [string, 'null'], maxLength: 30 }
         color: { type: [string, 'null'], pattern: '^#[0-9A-F]{6}$' }
         sortOrder: { type: integer }
+        includeInNet: { type: boolean, default: true, description: Si la deuda se resta en el saldo neto CUSTOM (1.5.0). Opcional. }
     CreditCardDetailsData:
       type: object
       description: El `id` del sobre es el id de la cuenta CREDIT_CARD.

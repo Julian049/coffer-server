@@ -33,7 +33,7 @@
 
 **Coffer** es una app Android de finanzas personales que funciona sin conexión: los datos viven en una base cifrada en el teléfono. Este servicio es su **copia en la nube**. Autentica al usuario, recibe los cambios que el teléfono no ha subido y le entrega los que le faltan, para que nada se pierda al cambiar o reinstalar el teléfono.
 
-La lógica financiera (cuotas, tasas, saldos) vive en la app. El servidor guarda, valida y sincroniza ([ADR-0010](https://github.com/Julian049/coffer-docs/tree/main/02-architecture/adr)). La app está en [coffer-app](https://github.com/Julian049/coffer-app) y la documentación en [coffer-docs](https://github.com/Julian049/coffer-docs).
+La lógica financiera (cuotas, tasas, saldos) vive en la app. El servidor guarda, valida y sincroniza (ADR-0010). La app está en [coffer-app](https://github.com/Julian049/coffer-app) y la documentación del proyecto está en un repositorio privado.
 
 ## Qué hace
 
@@ -47,7 +47,7 @@ La lógica financiera (cuotas, tasas, saldos) vive en la app. El servidor guarda
 
 ## API
 
-El contrato completo está en [`openapi.yml`](https://github.com/Julian049/coffer-docs/blob/main/04-api/openapi.yml) (OpenAPI 3.1). Las pruebas lo validan en cada llamada.
+El contrato completo está en [`openapi.yml`](src/test/resources/contract/openapi.yml) (OpenAPI 3.1). Las pruebas lo validan en cada llamada.
 
 | Método | Ruta | Para qué |
 | --- | --- | --- |
@@ -111,11 +111,11 @@ En local, si no hay llaves JWT, el servicio genera un par temporal. En staging y
 | Staging | `develop` | `coffer-server-staging` | rama `staging` |
 | Producción | `main` | `coffer-server` | rama `production` |
 
-Las variables (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `GOOGLE_CLIENT_ID`, `DB_POOL_SIZE`) viven en Render y en el gestor de contraseñas del dueño, nunca en el repositorio. Antes de una migración en producción se crea una rama de respaldo en Neon. Ramas, versiones y releases siguen la [gestión de la configuración](https://github.com/Julian049/coffer-docs/blob/main/06-settings/manage-config.md). Los cambios de cada versión están en el [CHANGELOG](CHANGELOG.md).
+Las variables (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `GOOGLE_CLIENT_ID`, `DB_POOL_SIZE`) viven en Render y en el gestor de contraseñas del dueño, nunca en el repositorio. Antes de una migración en producción se crea una rama de respaldo en Neon. Ramas, versiones y releases siguen la gestión de la configuración del proyecto (documentación privada). Los cambios de cada versión están en el [CHANGELOG](CHANGELOG.md).
 
 ## Licencia
 
-Código propietario: **todos los derechos reservados** (ver [`LICENSE`](LICENSE)). Las bibliotecas de terceros conservan sus propias licencias: [avisos de terceros](https://github.com/Julian049/coffer-docs/blob/develop/10-legal/third-party-notices.md). [Política de privacidad](https://julian049.github.io/coffer-docs/10-legal/privacy-policy.html) · [Términos de uso](https://julian049.github.io/coffer-docs/10-legal/terms.html).
+Código propietario: **todos los derechos reservados** (ver [`LICENSE`](LICENSE)). Las bibliotecas de terceros conservan sus propias licencias: [avisos de terceros](https://julian049.github.io/coffer-app/third-party-notices.html). [Política de privacidad](https://julian049.github.io/coffer-app/privacy-policy.html) · [Términos de uso](https://julian049.github.io/coffer-app/terms.html).
 
 ## Autor
 

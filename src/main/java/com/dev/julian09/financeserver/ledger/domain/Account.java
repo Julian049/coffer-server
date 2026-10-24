@@ -25,6 +25,9 @@ public class Account extends SyncableEntity {
     @Column(name = "include_in_total", nullable = false)
     private boolean includeInTotal;
 
+    @Column(name = "include_in_net", nullable = false)
+    private boolean includeInNet;
+
     @Column(nullable = false)
     private boolean active;
 
@@ -54,6 +57,8 @@ public class Account extends SyncableEntity {
     public BigDecimal getInitialBalance() { return initialBalance; }
 
     public boolean isIncludeInTotal() { return includeInTotal; }
+
+    public boolean isIncludeInNet() { return includeInNet; }
 
     public boolean isActive() { return active; }
 
