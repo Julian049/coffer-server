@@ -25,7 +25,8 @@ public sealed interface EntityData {
     record SettingsData(@Min(0) @Max(30) int reminderLeadDays, boolean notificationsEnabled,
                         @NotNull @Pattern(regexp = "AVAILABLE|NET") String homeBalanceView,
                         @Min(0) @Max(2) int amountDecimals, @NotNull JsonNode homeCards,
-                        @Pattern(regexp = "PERIOD|CUSTOM|TOTAL_DEBT") String netBalanceMode, UUID loanPaymentCategoryId) implements EntityData {
+                        @Pattern(regexp = "PERIOD|CUSTOM|TOTAL_DEBT") String netBalanceMode, UUID loanPaymentCategoryId,
+                        Boolean notifyDrafts) implements EntityData {
     }
 
     record AccountData(@NotBlank @Size(max = 60) String name,
@@ -33,7 +34,7 @@ public sealed interface EntityData {
                        @NotNull @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal initialBalance,
                        boolean includeInTotal, boolean active, Instant deactivatedAt, @Size(max = 60) String institution,
                        @Size(max = 30) String icon, @Pattern(regexp = "^#[0-9A-F]{6}$") String color, int sortOrder,
-                       Boolean includeInNet) implements EntityData {
+                       Boolean includeInNet, @Pattern(regexp = "^([0-9]{4})?$") String lastDigits) implements EntityData {
         /** Optional since openapi 1.5.0: older apps do not send it, and every debt then counts. */
         public boolean inNet() {
             return !Boolean.FALSE.equals(includeInNet);
@@ -53,6 +54,14 @@ public sealed interface EntityData {
     }
 
     /** color is optional: 1.6 clients do not send it. */
+    /** REQ-COR-02: created by the server from a bank email; the phone applies or discards it (pushes it deleted). */
+    record TransactionDraftData(@NotNull @Pattern(regexp = "BANCOLOMBIA|RAPPICARD") String source,
+                                @NotNull @Pattern(regexp = "EXPENSE|INCOME") String type,
+                                @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal amount,
+                                @NotNull Instant occurredAt, @Size(max = 200) String merchant,
+                                @Pattern(regexp = "^[0-9]{4}$") String lastDigits) implements EntityData {
+    }
+
     record TagData(@NotBlank @Size(max = 50) String name, boolean pinned, @Pattern(regexp = "^#[0-9A-F]{6}$") String color)
             implements EntityData {
     }

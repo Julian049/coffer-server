@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - V15 (S18, 2.0): several tags per transaction (`transactions.tag_ids`, ADR-0015) and a color per tag (`tags.color`); `tagId` stays for 1.6 apps and mirrors the first tag; `openapi.yml` 2.0.0
+- V16 (S19, S20, 2.0): reading bank receipts by email (ADR-0014). A `mail` module keeps an IMAP IDLE connection to Coffer's Gmail (`MAIL_IMAP_USER`, `MAIL_IMAP_PASSWORD`; off without them), queues each email in `inbound_messages` with its Message-ID as the guard against copies, reads Bancolombia (payment, transfer received) and RappiCard (purchase) receipts with rules and stores a `transactionDraft` for the user of the `+code`, which syncs to the phone; failed bodies are kept 7 days. `users.mail_code` and Gmail's forwarding confirmation show in `/me` (`forwardingAddress`, `forwardingConfirmation`); `accounts.lastDigits` and `user_settings.notifyDrafts` sync and are optional for older apps
+- FCM notices (ADR-0016): `PUT`/`DELETE /api/v1/me/device-token`, and a `notify` module that sends a data message per draft through FCM HTTP v1 with the service account in `FCM_CREDENTIALS` (off without it, or when the user turns it off)
 - Password reset with a 6-digit code (REQ-AUT-09, REQ-AUT-10): `POST /api/v1/auth/password-reset` (always 202) and `/password-reset/confirm` (revokes every session); the code is sent through Brevo's HTTP API (`BREVO_API_KEY`), is stored as a BCrypt hash, lasts 15 minutes, allows 5 attempts and at most 3 codes an hour
 
 ## [1.6.0] - 2026-10-23

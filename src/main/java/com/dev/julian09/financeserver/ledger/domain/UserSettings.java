@@ -36,6 +36,9 @@ public class UserSettings extends SyncableEntity {
     @Column(name = "loan_payment_category_id")
     private UUID loanPaymentCategoryId;
 
+    @Column(name = "notify_drafts", nullable = false)
+    private boolean notifyDrafts;
+
     protected UserSettings() {
     }
 
@@ -52,4 +55,6 @@ public class UserSettings extends SyncableEntity {
     public String getNetBalanceMode() { return netBalanceMode; }
 
     public UUID getLoanPaymentCategoryId() { return loanPaymentCategoryId; }
+
+    public boolean isNotifyDrafts() { return notifyDrafts; }
 }

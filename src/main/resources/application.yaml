@@ -31,6 +31,12 @@ finance:
     # Brevo HTTP API for the password reset code (REQ-AUT-09); empty locally and in tests, where nothing is sent
     brevo-api-key: ${BREVO_API_KEY:}
     from: ${MAIL_FROM:cofferapp1@gmail.com}
+    # IMAP IDLE over Coffer's Gmail (ADR-0014); empty = mail reading off
+    imap-user: ${MAIL_IMAP_USER:}
+    imap-password: ${MAIL_IMAP_PASSWORD:}
+  notify:
+    # Firebase service account JSON for FCM (ADR-0016); empty = no notices
+    fcm-credentials: ${FCM_CREDENTIALS:}
   google:
     # Web client id of Google Cloud (REQ-AUT-03); empty locally and in tests, where Google sign-in is refused
     client-id: ${GOOGLE_CLIENT_ID:}

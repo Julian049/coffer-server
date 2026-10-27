@@ -1,5 +1,6 @@
 package com.dev.julian09.financeserver.sync.handler;
 
+import java.sql.Types;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,13 +15,15 @@ public class AccountSyncHandler extends SyncHandler<AccountData> {
 
     private static final String UPSERT = """
             INSERT INTO accounts AS t (id, user_id, name, type, initial_balance, include_in_total, include_in_net, active, deactivated_at,
-                institution, icon, color, sort_order, created_at, updated_at, deleted_at)
+                institution, icon, color, sort_order, last_digits, created_at, updated_at, deleted_at)
             VALUES (:id, :userId, :name, :type, :initialBalance, :includeInTotal, :includeInNet, :active, :deactivatedAt, :institution,
-                :icon, :color, :sortOrder, :createdAt, :updatedAt, :deletedAt)
+                :icon, :color, :sortOrder, NULLIF(:lastDigits, ''), :createdAt, :updatedAt, :deletedAt)
             ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type,
                 initial_balance = EXCLUDED.initial_balance, include_in_total = EXCLUDED.include_in_total, include_in_net = EXCLUDED.include_in_net,
                 active = EXCLUDED.active, deactivated_at = EXCLUDED.deactivated_at, institution = EXCLUDED.institution,
                 icon = EXCLUDED.icon, color = EXCLUDED.color, sort_order = EXCLUDED.sort_order,
+                -- Apps before 2.0 do not send it: keep the stored digits; "" clears them
+                last_digits = CASE WHEN :lastDigits IS NULL THEN t.last_digits ELSE NULLIF(:lastDigits, '') END,
                 updated_at = EXCLUDED.updated_at, deleted_at = EXCLUDED.deleted_at
             WHERE t.user_id = EXCLUDED.user_id AND EXCLUDED.updated_at > t.updated_at
             RETURNING version
@@ -68,6 +71,7 @@ public class AccountSyncHandler extends SyncHandler<AccountData> {
                 .addValue("institution", d.institution())
                 .addValue("icon", d.icon())
                 .addValue("color", d.color())
-                .addValue("sortOrder", d.sortOrder()));
+                .addValue("sortOrder", d.sortOrder())
+                .addValue("lastDigits", d.lastDigits(), Types.VARCHAR));
     }
 }

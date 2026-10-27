@@ -240,6 +240,36 @@ paths:
         '403': { $ref: '#/components/responses/ConfirmationFailed' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
+  /api/v1/me/device-token:
+    put:
+      tags: [Auth]
+      operationId: registerDeviceToken
+      summary: Registrar el token de FCM de este teléfono
+      description: ADR-0016 (2.0.0). Si el token ya existía, pasa al usuario de esta sesión.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceTokenRequest' }
+      responses:
+        '204':
+          description: Registrado.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Auth]
+      operationId: removeDeviceToken
+      summary: Quitar el token de FCM al cerrar sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceTokenRequest' }
+      responses:
+        '204':
+          description: Quitado (idempotente).
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   /api/v1/sync/push:
     post:
       tags: [Sync]
@@ -534,12 +564,23 @@ components:
         email: { type: string, format: email }
         currency: { type: string, pattern: '^[A-Z]{3}$', examples: ['COP'] }
         googleLinked: { type: boolean }
+        forwardingAddress:
+          type: [string, 'null']
+          description: REQ-COR-01 (2.0.0). Dirección a la que el usuario reenvía sus comprobantes, con su código.
+        forwardingConfirmation:
+          type: [string, 'null']
+          description: Código que Gmail envía para aceptar el reenvío, mientras no se use otro (2.0.0).
+    DeviceTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, minLength: 1, maxLength: 300 }
 
     # ------------------------------------------------------------ Sync: sobres
     EntityName:
       type: string
       enum: [settings, account, creditCardDetails, loanDetails, category, tag, transaction,
-             deferredPurchase, installment, recurringExpense, changeLog]
+             deferredPurchase, installment, recurringExpense, changeLog, transactionDraft]
     ChangeBase:
       type: object
       required: [entity, id, createdAt, updatedAt, deletedAt, data]
@@ -569,6 +610,7 @@ components:
         - $ref: '#/components/schemas/InstallmentChange'
         - $ref: '#/components/schemas/RecurringExpenseChange'
         - $ref: '#/components/schemas/ChangeLogChange'
+        - $ref: '#/components/schemas/TransactionDraftChange'
       discriminator:
         propertyName: entity
         mapping:
@@ -583,6 +625,7 @@ components:
           installment: '#/components/schemas/InstallmentChange'
           recurringExpense: '#/components/schemas/RecurringExpenseChange'
           changeLog: '#/components/schemas/ChangeLogChange'
+          transactionDraft: '#/components/schemas/TransactionDraftChange'
     SettingsChange:
       allOf:
         - $ref: '#/components/schemas/ChangeBase'
@@ -660,6 +703,13 @@ components:
           properties:
             entity: { const: changeLog }
             data: { $ref: '#/components/schemas/ChangeLogData' }
+    TransactionDraftChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: transactionDraft }
+            data: { $ref: '#/components/schemas/TransactionDraftData' }
 
     PushRequest:
       type: object
@@ -740,6 +790,9 @@ components:
           type: [string, 'null']
           format: uuid
           description: Categoría de gasto que recibe el capital de las cuotas de préstamo (1.5.0). Opcional; si falta se conserva la guardada.
+        notifyDrafts:
+          type: boolean
+          description: REQ-COR-10 (2.0.0). Aviso de movimientos por revisar. Opcional; si falta se conserva (activo por defecto).
     AccountData:
       type: object
       required: [name, type, initialBalance, includeInTotal, active, sortOrder]
@@ -756,6 +809,10 @@ components:
         color: { type: [string, 'null'], pattern: '^#[0-9A-F]{6}$' }
         sortOrder: { type: integer }
         includeInNet: { type: boolean, default: true, description: Si la deuda se resta en el saldo neto CUSTOM (1.5.0). Opcional. }
+        lastDigits:
+          type: [string, 'null']
+          pattern: '^([0-9]{4})?$'
+          description: REQ-COR-06 (2.0.0). Últimos 4 dígitos; si falta se conservan, `""` los borra.
     CreditCardDetailsData:
       type: object
       description: El `id` del sobre es el id de la cuenta CREDIT_CARD.
@@ -822,6 +879,19 @@ components:
         email: { type: string, format: email, maxLength: 255 }
         code: { type: string, pattern: '^[0-9]{6}$' }
         newPassword: { type: string, minLength: 8, maxLength: 128 }
+    TransactionDraftData:
+      type: object
+      description: |
+        REQ-COR-02 (2.0.0). La crea el servidor al leer un comprobante; el teléfono solo la devuelve borrada
+        al aplicarla o descartarla (en una actualización el servidor ignora `data`).
+      required: [source, type, amount, occurredAt]
+      properties:
+        source: { type: string, enum: [BANCOLOMBIA, RAPPICARD] }
+        type: { type: string, enum: [EXPENSE, INCOME] }
+        amount: { $ref: '#/components/schemas/PositiveAmount' }
+        occurredAt: { $ref: '#/components/schemas/Instant' }
+        merchant: { type: [string, 'null'], maxLength: 200 }
+        lastDigits: { type: [string, 'null'], pattern: '^[0-9]{4}$' }
     TagData:
       type: object
       required: [name, pinned]
