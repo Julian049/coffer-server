@@ -14,6 +14,8 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -32,6 +34,8 @@ import tools.jackson.databind.json.JsonMapper;
 public class FcmSender {
 
     public enum Result { SENT, GONE, FAILED }
+
+    private static final Logger log = LoggerFactory.getLogger(FcmSender.class);
 
     private final RestClient http = RestClient.create();
     private final Clock clock;
@@ -60,8 +64,14 @@ public class FcmSender {
                     .retrieve().toBodilessEntity();
             return Result.SENT;
         } catch (HttpClientErrorException e) {
-            return e.getStatusCode().isSameCodeAs(HttpStatusCode.valueOf(404)) ? Result.GONE : Result.FAILED;
+            if (e.getStatusCode().isSameCodeAs(HttpStatusCode.valueOf(404))) {
+                return Result.GONE;
+            }
+            // FCM's error body names the cause (API disabled, sender mismatch, bad token) and never echoes credentials
+            log.warn("FCM answered {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
+            return Result.FAILED;
         } catch (RuntimeException e) {
+            log.warn("FCM send failed: {}", e.getCause() != null ? e.getMessage() + " (" + e.getCause().getMessage() + ")" : e.getMessage());
             return Result.FAILED;
         }
     }
