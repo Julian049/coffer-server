@@ -47,15 +47,17 @@ public class InboundMessageService {
         if (inserted == 0) {
             return Outcome.DUPLICATE;
         }
-        Optional<UUID> user = ReceiptParsers.userCode(recipients).flatMap(code ->
-                jdbc.queryForList("SELECT id FROM users WHERE mail_code = ?", UUID.class, code).stream().findFirst());
+        Optional<String> code = ReceiptParsers.userCode(recipients);
+        Optional<UUID> user = code.flatMap(c ->
+                jdbc.queryForList("SELECT id FROM users WHERE mail_code = ?", UUID.class, c).stream().findFirst());
         if (user.isEmpty()) {
-            return finish(id, user, Outcome.IGNORED, "Sin usuario para el destinatario");
+            return finish(id, user, Outcome.IGNORED,
+                    code.isEmpty() ? "El destinatario no trae el +código" : "Ningún usuario tiene ese +código");
         }
         Optional<String> confirmation = ReceiptParsers.forwardingCode(from, subject);
         if (confirmation.isPresent()) {
             jdbc.update("UPDATE users SET forwarding_confirmation = ?, updated_at = ? WHERE id = ?", confirmation.get(), now, user.get());
-            return finish(id, user, Outcome.IGNORED, null);
+            return finish(id, user, Outcome.IGNORED, "Confirmación de reenvío de Gmail");
         }
         Optional<ParsedReceipt> receipt = ReceiptParsers.parse(body == null ? "" : body);
         if (receipt.isEmpty()) {
@@ -77,6 +79,10 @@ public class InboundMessageService {
                 UPDATE inbound_messages SET status = ?, user_id = ?, error = ?, processed_at = ?,
                     body = CASE WHEN ? = 'FAILED' THEN body END, attempts = attempts + 1 WHERE id = ?""",
                 outcome.name(), user.orElse(null), error, utc(clock.instant()), outcome.name(), id);
+        if (error != null) {
+            // The reason is also in inbound_messages.error; in the log it explains an IGNORED or FAILED without Neon
+            log.info("Inbound message {} {}: {}", id, outcome, error);
+        }
         return outcome;
     }
 
