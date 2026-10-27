@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-27
+
+### Fixed
+
+- The mail listener runs on a platform thread: on a single CPU its IMAP IDLE pinned the only carrier of the virtual threads, so no request was served and Render restarted the service after its health check timed out
+
 ## [2.0.0] - 2026-10-27
 
 ### Added
