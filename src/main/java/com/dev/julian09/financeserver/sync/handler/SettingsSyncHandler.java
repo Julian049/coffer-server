@@ -15,9 +15,9 @@ public class SettingsSyncHandler extends SyncHandler<SettingsData> {
 
     private static final String UPSERT = """
             INSERT INTO user_settings AS t (id, user_id, reminder_lead_days, notifications_enabled, home_balance_view,
-                amount_decimals, home_cards, net_balance_mode, loan_payment_category_id, created_at, updated_at, deleted_at)
+                amount_decimals, home_cards, net_balance_mode, loan_payment_category_id, notify_drafts, created_at, updated_at, deleted_at)
             VALUES (:id, :userId, :reminderLeadDays, :notificationsEnabled, :homeBalanceView, :amountDecimals,
-                CAST(:homeCards AS jsonb), COALESCE(:netBalanceMode, 'PERIOD'), :loanPaymentCategoryId, :createdAt, :updatedAt, :deletedAt)
+                CAST(:homeCards AS jsonb), COALESCE(:netBalanceMode, 'PERIOD'), :loanPaymentCategoryId, COALESCE(:notifyDrafts, TRUE), :createdAt, :updatedAt, :deletedAt)
             ON CONFLICT (id) DO UPDATE SET reminder_lead_days = EXCLUDED.reminder_lead_days,
                 notifications_enabled = EXCLUDED.notifications_enabled, home_balance_view = EXCLUDED.home_balance_view,
                 amount_decimals = EXCLUDED.amount_decimals, home_cards = EXCLUDED.home_cards,
@@ -25,6 +25,8 @@ public class SettingsSyncHandler extends SyncHandler<SettingsData> {
                 net_balance_mode = COALESCE(:netBalanceMode, t.net_balance_mode),
                 -- Apps before 1.6.0 do not send it: keep the stored category
                 loan_payment_category_id = COALESCE(:loanPaymentCategoryId, t.loan_payment_category_id),
+                -- Apps before 2.0 do not send it: keep the stored choice
+                notify_drafts = COALESCE(:notifyDrafts, t.notify_drafts),
                 updated_at = EXCLUDED.updated_at, deleted_at = EXCLUDED.deleted_at
             WHERE t.user_id = EXCLUDED.user_id AND EXCLUDED.updated_at > t.updated_at
             RETURNING version
@@ -73,6 +75,7 @@ public class SettingsSyncHandler extends SyncHandler<SettingsData> {
                 .addValue("homeCards", d.homeCards().toString())
                 // Apps 1.4.x and 1.5.x still send TOTAL_DEBT: with every debt marked, CUSTOM is the same result
                 .addValue("netBalanceMode", "TOTAL_DEBT".equals(d.netBalanceMode()) ? "CUSTOM" : d.netBalanceMode(), Types.VARCHAR)
-                .addValue("loanPaymentCategoryId", d.loanPaymentCategoryId(), Types.OTHER));
+                .addValue("loanPaymentCategoryId", d.loanPaymentCategoryId(), Types.OTHER)
+                .addValue("notifyDrafts", d.notifyDrafts(), Types.BOOLEAN));
     }
 }

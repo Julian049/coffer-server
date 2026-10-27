@@ -12,6 +12,7 @@ import com.dev.julian09.financeserver.identity.dto.LoginRequest;
 import com.dev.julian09.financeserver.identity.dto.RefreshRequest;
 import com.dev.julian09.financeserver.identity.dto.RegisterRequest;
 import com.dev.julian09.financeserver.identity.dto.UserDto;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +24,11 @@ public class AuthService {
     private final TokenService tokens;
     private final LoginRateLimiter rateLimiter;
     private final GoogleTokenVerifier google;
+    private final String inbox;
 
-    public AuthService(UserService users, TokenService tokens, LoginRateLimiter rateLimiter, GoogleTokenVerifier google) {
+    public AuthService(UserService users, TokenService tokens, LoginRateLimiter rateLimiter, GoogleTokenVerifier google,
+                       @Value("${finance.mail.imap-user:}") String imapUser, @Value("${finance.mail.from:cofferapp1@gmail.com}") String from) {
+        this.inbox = imapUser.isBlank() ? from : imapUser;
         this.users = users;
         this.tokens = tokens;
         this.rateLimiter = rateLimiter;
@@ -82,10 +86,10 @@ public class AuthService {
     }
 
     public UserDto me(UUID userId) {
-        return UserDto.of(users.get(userId));
+        return UserDto.of(users.get(userId), inbox);
     }
 
-    private static AuthResponse response(User user, TokenService.Tokens issued) {
-        return new AuthResponse(issued.accessToken(), issued.accessTokenExpiresAt(), issued.refreshToken(), UserDto.of(user));
+    private AuthResponse response(User user, TokenService.Tokens issued) {
+        return new AuthResponse(issued.accessToken(), issued.accessTokenExpiresAt(), issued.refreshToken(), UserDto.of(user, inbox));
     }
 }

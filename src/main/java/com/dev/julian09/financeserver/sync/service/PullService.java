@@ -29,6 +29,7 @@ import com.dev.julian09.financeserver.ledger.repo.InstallmentRepository;
 import com.dev.julian09.financeserver.ledger.repo.LoanDetailsRepository;
 import com.dev.julian09.financeserver.ledger.repo.RecurringExpenseRepository;
 import com.dev.julian09.financeserver.ledger.repo.TagRepository;
+import com.dev.julian09.financeserver.ledger.repo.TransactionDraftRepository;
 import com.dev.julian09.financeserver.ledger.repo.TransactionRepository;
 import com.dev.julian09.financeserver.ledger.repo.UserSettingsRepository;
 import com.dev.julian09.financeserver.sync.dto.EntityData;
@@ -62,6 +63,7 @@ public class PullService {
             UNION ALL SELECT 'installment', id, version FROM installments WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'recurringExpense', id, version FROM recurring_expenses WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'changeLog', id, version FROM change_log WHERE user_id = :user AND version > :since
+            UNION ALL SELECT 'transactionDraft', id, version FROM transaction_drafts WHERE user_id = :user AND version > :since
             """;
 
     private record Row(String entity, UUID id, long version) {
@@ -79,13 +81,14 @@ public class PullService {
     private final DeferredPurchaseRepository deferred;
     private final InstallmentRepository installments;
     private final LoanDetailsRepository loans;
+    private final TransactionDraftRepository drafts;
     private final JsonMapper json;
 
     public PullService(NamedParameterJdbcTemplate jdbc, UserSettingsRepository settings, AccountRepository accounts,
                        CategoryRepository categories, TagRepository tags, TransactionRepository transactions,
                        ChangeLogRepository changeLog, RecurringExpenseRepository recurring, CreditCardDetailsRepository cards,
                        DeferredPurchaseRepository deferred, InstallmentRepository installments, LoanDetailsRepository loans,
-                       JsonMapper json) {
+                       TransactionDraftRepository drafts, JsonMapper json) {
         this.jdbc = jdbc;
         this.settings = settings;
         this.accounts = accounts;
@@ -98,6 +101,7 @@ public class PullService {
         this.deferred = deferred;
         this.installments = installments;
         this.loans = loans;
+        this.drafts = drafts;
         this.json = json;
     }
 
@@ -117,7 +121,7 @@ public class PullService {
         load(idsByEntity, "settings", settings, this::settingsData, loaded);
         load(idsByEntity, "account", accounts, PullService::accountData, loaded);
         load(idsByEntity, "category", categories, PullService::categoryData, loaded);
-        load(idsByEntity, "tag", tags, t -> new EntityData.TagData(t.getName(), t.isPinned()), loaded);
+        load(idsByEntity, "tag", tags, t -> new EntityData.TagData(t.getName(), t.isPinned(), t.getColor()), loaded);
         load(idsByEntity, "transaction", transactions, PullService::transactionData, loaded);
         load(idsByEntity, "creditCardDetails", cards, PullService::cardData, loaded);
         load(idsByEntity, "loanDetails", loans, PullService::loanData, loaded);
@@ -125,6 +129,8 @@ public class PullService {
         load(idsByEntity, "installment", installments, PullService::installmentData, loaded);
         load(idsByEntity, "recurringExpense", recurring, PullService::recurringData, loaded);
         load(idsByEntity, "changeLog", changeLog, this::changeLogData, loaded);
+        load(idsByEntity, "transactionDraft", drafts, d -> new EntityData.TransactionDraftData(d.getSource(), d.getType(), d.getAmount(),
+                d.getOccurredAt(), d.getMerchant(), d.getLastDigits()), loaded);
 
         List<PulledChange> changes = new ArrayList<>(page.size());
         page.forEach(row -> changes.add(loaded.get(row.entity() + row.id())));
@@ -151,7 +157,7 @@ public class PullService {
     private EntityData settingsData(UserSettings s) {
         return new EntityData.SettingsData(s.getReminderLeadDays(), s.isNotificationsEnabled(), s.getHomeBalanceView(),
                 s.getAmountDecimals(), json.readTree(s.getHomeCards()), s.getNetBalanceMode(),
-                s.getLoanPaymentCategoryId());
+                s.getLoanPaymentCategoryId(), s.isNotifyDrafts());
     }
 
     private EntityData changeLogData(ChangeLog c) {
@@ -166,7 +172,7 @@ public class PullService {
     private static EntityData accountData(Account a) {
         return new EntityData.AccountData(a.getName(), a.getType(), a.getInitialBalance(), a.isIncludeInTotal(), a.isActive(),
                 a.getDeactivatedAt(), a.getInstitution(), a.getIcon(), a.getColor(), a.getSortOrder(),
-                a.isIncludeInNet());
+                a.isIncludeInNet(), a.getLastDigits());
     }
 
     private static EntityData categoryData(Category c) {
@@ -205,6 +211,7 @@ public class PullService {
     private static EntityData transactionData(Transaction t) {
         return new EntityData.TransactionData(t.getType(), t.getAmount(), t.getOccurredAt(), t.getAccountId(),
                 t.getDestinationAccountId(), t.getCategoryId(), t.getTagId(), t.getNote(), t.getInstallments(), t.getPrincipal(),
-                t.getInterest(), t.getFees(), t.getInstallmentId(), t.getRecurringId(), t.getPaymentKind(), t.getConcept());
+                t.getInterest(), t.getFees(), t.getInstallmentId(), t.getRecurringId(), t.getPaymentKind(), t.getConcept(),
+                t.getTagIds());
     }
 }

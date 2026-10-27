@@ -17,15 +17,15 @@ public class TransactionSyncHandler extends SyncHandler<TransactionData> {
 
     private static final String UPSERT = """
             INSERT INTO transactions AS t (id, user_id, type, amount, occurred_at, account_id, destination_account_id,
-                category_id, tag_id, note, installments, principal, interest, fees, installment_id, recurring_id,
+                category_id, tag_id, tag_ids, note, installments, principal, interest, fees, installment_id, recurring_id,
                 payment_kind, concept, created_at, updated_at, deleted_at)
-            VALUES (:id, :userId, :type, :amount, :occurredAt, :accountId, :destinationAccountId, :categoryId, :tagId,
+            VALUES (:id, :userId, :type, :amount, :occurredAt, :accountId, :destinationAccountId, :categoryId, :tagId, :tagIds,
                 :note, :installments, :principal, :interest, :fees, :installmentId, :recurringId, :paymentKind,
                 :concept, :createdAt, :updatedAt, :deletedAt)
             ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, amount = EXCLUDED.amount,
                 occurred_at = EXCLUDED.occurred_at, account_id = EXCLUDED.account_id,
                 destination_account_id = EXCLUDED.destination_account_id, category_id = EXCLUDED.category_id,
-                tag_id = EXCLUDED.tag_id, note = EXCLUDED.note, installments = EXCLUDED.installments,
+                tag_id = EXCLUDED.tag_id, tag_ids = EXCLUDED.tag_ids, note = EXCLUDED.note, installments = EXCLUDED.installments,
                 principal = EXCLUDED.principal, interest = EXCLUDED.interest, fees = EXCLUDED.fees,
                 installment_id = EXCLUDED.installment_id, recurring_id = EXCLUDED.recurring_id,
                 payment_kind = EXCLUDED.payment_kind, concept = EXCLUDED.concept, updated_at = EXCLUDED.updated_at, deleted_at = EXCLUDED.deleted_at
@@ -73,7 +73,10 @@ public class TransactionSyncHandler extends SyncHandler<TransactionData> {
         if (!ledger.accountExists(userId, d.accountId()) || (transfer && !ledger.accountExists(userId, d.destinationAccountId()))) {
             return Optional.of(Rejection.reference("La cuenta no existe"));
         }
-        if (d.tagId() != null && !ledger.tagExists(userId, d.tagId())) {
+        if (transfer && !d.effectiveTagIds().isEmpty()) {
+            return Optional.of(Rejection.invalid("Las transferencias no llevan etiquetas"));
+        }
+        if (d.effectiveTagIds().stream().anyMatch(tag -> !ledger.tagExists(userId, tag))) {
             return Optional.of(Rejection.reference("La etiqueta no existe"));
         }
         if (d.recurringId() != null && !ledger.recurringExists(userId, d.recurringId())) {
@@ -103,7 +106,8 @@ public class TransactionSyncHandler extends SyncHandler<TransactionData> {
                 .addValue("accountId", d.accountId())
                 .addValue("destinationAccountId", d.destinationAccountId())
                 .addValue("categoryId", d.categoryId())
-                .addValue("tagId", d.tagId())
+                .addValue("tagId", d.effectiveTagIds().stream().findFirst().orElse(null))
+                .addValue("tagIds", d.effectiveTagIds().toArray(UUID[]::new))
                 .addValue("note", d.note())
                 .addValue("installments", (short) d.installments())
                 .addValue("principal", d.principal())
