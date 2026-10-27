@@ -43,6 +43,7 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request, String clientIp) {
         rateLimiter.check(clientIp, request.identifier());
+        rateLimiter.checkAccount(request.identifier());
         // Same message whether the user exists or not (RNF-07, SEQ-01)
         User user = users.authenticate(request.identifier(), request.password())
                 .orElseThrow(() -> new ApiException(ErrorCode.AUTH_INVALID, "Usuario o contraseña incorrectos."));

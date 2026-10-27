@@ -21,6 +21,8 @@ import org.springframework.stereotype.Component;
 public class LoginRateLimiter {
 
     static final int MAX_ATTEMPTS = 5;
+    // IP-independent backstop: holds even when a proxy hides the client IP, so the per-IP window never fills (S23-SEC03)
+    static final int MAX_ATTEMPTS_PER_ACCOUNT = 10;
     static final Duration WINDOW = Duration.ofMinutes(1);
 
     private final Map<String, Deque<Instant>> attempts = new ConcurrentHashMap<>();
@@ -32,12 +34,23 @@ public class LoginRateLimiter {
 
     /** Counts this attempt or throws 429 with how long to wait. */
     public void check(String ip, String identifier) {
+        hit(ip + "|" + identifier.trim().toLowerCase(Locale.ROOT), MAX_ATTEMPTS);
+    }
+
+    /**
+     * IP-independent cap per account. Behind a reverse proxy the client IP can be unstable or spoofable, so the
+     * (IP, identifier) window may never fill; this still caps attempts against a single account (S23-SEC03).
+     */
+    public void checkAccount(String identifier) {
+        hit("account|" + identifier.trim().toLowerCase(Locale.ROOT), MAX_ATTEMPTS_PER_ACCOUNT);
+    }
+
+    private void hit(String key, int max) {
         Instant now = clock.instant();
-        String key = ip + "|" + identifier.trim().toLowerCase(Locale.ROOT);
         Deque<Instant> window = attempts.computeIfAbsent(key, k -> new ArrayDeque<>());
         synchronized (window) {
             prune(window, now);
-            if (window.size() >= MAX_ATTEMPTS) {
+            if (window.size() >= max) {
                 throw new RateLimitException(Duration.between(now, window.peekFirst().plus(WINDOW)));
             }
             window.addLast(now);
