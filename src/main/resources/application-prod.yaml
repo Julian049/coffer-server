@@ -8,3 +8,7 @@ finance:
     # No default: the service refuses to start without its own keys
     private-key: ${JWT_PRIVATE_KEY}
     public-key: ${JWT_PUBLIC_KEY}
+# 2.1 security review: the API schema adds nothing for clients and describes the whole API, so it is off in production (staging keeps it)
+springdoc:
+  api-docs:
+    enabled: false
