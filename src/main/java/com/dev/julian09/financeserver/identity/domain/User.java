@@ -69,6 +69,12 @@ public class User {
         this.updatedAt = now;
     }
 
+    /** REQ-AUT-09: also gives a Google-only user a password. */
+    public void changePassword(String passwordHash, Instant now) {
+        this.passwordHash = passwordHash;
+        this.updatedAt = now;
+    }
+
     public UUID getId() { return id; }
 
     public String getUsername() { return username; }

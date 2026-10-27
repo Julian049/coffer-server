@@ -3,6 +3,7 @@ package com.dev.julian09.financeserver.sync.dto;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.constraints.DecimalMin;
@@ -51,7 +52,9 @@ public sealed interface EntityData {
 
     }
 
-    record TagData(@NotBlank @Size(max = 50) String name, boolean pinned) implements EntityData {
+    /** color is optional: 1.6 clients do not send it. */
+    record TagData(@NotBlank @Size(max = 50) String name, boolean pinned, @Pattern(regexp = "^#[0-9A-F]{6}$") String color)
+            implements EntityData {
     }
 
     record TransactionData(@NotNull @Pattern(regexp = "EXPENSE|INCOME|TRANSFER") String type,
@@ -63,7 +66,17 @@ public sealed interface EntityData {
                            @DecimalMin("0") @Digits(integer = 15, fraction = 4) BigDecimal fees, UUID installmentId,
                            UUID recurringId,
                            @Pattern(regexp = "CARD_MIN|CARD_TOTAL|LOAN_INSTALL|LOAN_EXTRA") String paymentKind,
-                           @Size(max = 200) String concept) implements EntityData {
+                           @Size(max = 200) String concept, @Size(max = 20) List<UUID> tagIds) implements EntityData {
+
+        /**
+         * ADR-0015 expand: a 1.6 client sends only tagId, a 2.0 client sends tagIds; both are kept in step.
+         */
+        public List<UUID> effectiveTagIds() {
+            if (tagIds != null) {
+                return tagIds.stream().distinct().toList();
+            }
+            return tagId == null ? List.of() : List.of(tagId);
+        }
     }
 
     record RecurringExpenseData(@NotBlank @Size(max = 60) String name,

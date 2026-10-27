@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- V15 (S18, 2.0): several tags per transaction (`transactions.tag_ids`, ADR-0015) and a color per tag (`tags.color`); `tagId` stays for 1.6 apps and mirrors the first tag; `openapi.yml` 2.0.0
+- Password reset with a 6-digit code (REQ-AUT-09, REQ-AUT-10): `POST /api/v1/auth/password-reset` (always 202) and `/password-reset/confirm` (revokes every session); the code is sent through Brevo's HTTP API (`BREVO_API_KEY`), is stored as a BCrypt hash, lasts 15 minutes, allows 5 attempts and at most 3 codes an hour
+
 ## [1.6.0] - 2026-10-23
 
 ### Added

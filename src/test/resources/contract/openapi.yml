@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Coffer Server API
-  version: 1.5.0
+  version: 2.0.0
   summary: Autenticación, respaldo y sincronización de Coffer.
   description: |
     Contrato del servicio en la nube de Coffer (SRS v1.0 §7.3, ADR-0012).
@@ -121,6 +121,48 @@ paths:
               schema: { $ref: '#/components/schemas/AuthResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/InvalidCredentials' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/auth/password-reset:
+    post:
+      tags: [Auth]
+      operationId: requestPasswordReset
+      summary: Pedir un código para cambiar la contraseña
+      description: |
+        REQ-AUT-09 y REQ-AUT-10 (2.0.0). Envía un código de 6 dígitos al correo (vence en 15 minutos).
+        Responde igual exista o no el correo; como máximo 3 códigos por hora y cuenta.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordResetRequest' }
+      responses:
+        '202':
+          description: Recibido. Si el correo existe, llega un código.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /api/v1/auth/password-reset/confirm:
+    post:
+      tags: [Auth]
+      operationId: confirmPasswordReset
+      summary: Cambiar la contraseña con el código
+      description: |
+        REQ-AUT-09 (2.0.0). Con el código vigente fija la contraseña nueva y revoca todas las sesiones.
+        Un código sirve una vez y admite 5 intentos. Código incorrecto, vencido o correo inexistente: 400.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordResetConfirmRequest' }
+      responses:
+        '204':
+          description: Contraseña cambiada; hay que iniciar sesión de nuevo en cada dispositivo.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
   /api/v1/auth/refresh:
@@ -768,12 +810,28 @@ components:
           type: boolean
           default: false
           description: REQ-CAT-04 (1.1.0). Opcional; si falta se guarda false.
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 255 }
+    PasswordResetConfirmRequest:
+      type: object
+      required: [email, code, newPassword]
+      properties:
+        email: { type: string, format: email, maxLength: 255 }
+        code: { type: string, pattern: '^[0-9]{6}$' }
+        newPassword: { type: string, minLength: 8, maxLength: 128 }
     TagData:
       type: object
       required: [name, pinned]
       properties:
         name: { type: string, minLength: 1, maxLength: 50 }
         pinned: { type: boolean }
+        color:
+          type: [string, 'null']
+          pattern: '^#[0-9A-F]{6}$'
+          description: REQ-ETQ-05 (2.0.0). Opcional; si falta se conserva el guardado.
     TransactionData:
       type: object
       description: |
@@ -792,6 +850,14 @@ components:
           oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
         tagId:
           oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+          description: Obsoleto desde 2.0.0 (ADR-0015); se quita en 2.1. El servidor lo llena con la primera de `tagIds`.
+        tagIds:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Uuid' }
+          description: |
+            REQ-ETQ-02 (2.0.0). Todas las etiquetas del movimiento; las transferencias no llevan. Si falta,
+            el servidor usa `tagId` (clientes 1.6). En el pull siempre viene.
         note: { type: [string, 'null'], maxLength: 500 }
         installments: { type: integer, minimum: 1, maximum: 72, default: 1 }
         principal:

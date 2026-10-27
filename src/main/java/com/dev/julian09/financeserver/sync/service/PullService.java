@@ -117,7 +117,7 @@ public class PullService {
         load(idsByEntity, "settings", settings, this::settingsData, loaded);
         load(idsByEntity, "account", accounts, PullService::accountData, loaded);
         load(idsByEntity, "category", categories, PullService::categoryData, loaded);
-        load(idsByEntity, "tag", tags, t -> new EntityData.TagData(t.getName(), t.isPinned()), loaded);
+        load(idsByEntity, "tag", tags, t -> new EntityData.TagData(t.getName(), t.isPinned(), t.getColor()), loaded);
         load(idsByEntity, "transaction", transactions, PullService::transactionData, loaded);
         load(idsByEntity, "creditCardDetails", cards, PullService::cardData, loaded);
         load(idsByEntity, "loanDetails", loans, PullService::loanData, loaded);
@@ -205,6 +205,7 @@ public class PullService {
     private static EntityData transactionData(Transaction t) {
         return new EntityData.TransactionData(t.getType(), t.getAmount(), t.getOccurredAt(), t.getAccountId(),
                 t.getDestinationAccountId(), t.getCategoryId(), t.getTagId(), t.getNote(), t.getInstallments(), t.getPrincipal(),
-                t.getInterest(), t.getFees(), t.getInstallmentId(), t.getRecurringId(), t.getPaymentKind(), t.getConcept());
+                t.getInterest(), t.getFees(), t.getInstallmentId(), t.getRecurringId(), t.getPaymentKind(), t.getConcept(),
+                t.getTagIds());
     }
 }
