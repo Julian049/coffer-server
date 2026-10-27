@@ -21,6 +21,8 @@ class ArchitectureTest {
     private static final String LEDGER = BASE + ".ledger..";
     private static final String SYNC = BASE + ".sync..";
     private static final String LEGACY = BASE + ".legacy..";
+    private static final String MAIL = BASE + ".mail..";
+    private static final String NOTIFY = BASE + ".notify..";
 
     @ArchTest
     static final ArchRule ledgerDoesNotDependOnSyncOrIdentity = noClasses()
@@ -37,12 +39,18 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule sharedDependsOnNoModule = noClasses()
             .that().resideInAPackage(SHARED)
-            .should().dependOnClassesThat().resideInAnyPackage(CONFIG, IDENTITY, LEDGER, SYNC, LEGACY);
+            .should().dependOnClassesThat().resideInAnyPackage(CONFIG, IDENTITY, LEDGER, SYNC, LEGACY, MAIL, NOTIFY);
+
+    // ADR-0014 and ADR-0016: mail only publishes an event; the notices can be removed without touching it
+    @ArchTest
+    static final ArchRule mailDoesNotKnowNotify = noClasses()
+            .that().resideInAPackage(MAIL)
+            .should().dependOnClassesThat().resideInAnyPackage(NOTIFY, SYNC, IDENTITY, LEDGER);
 
     // Wiring points at the modules, never the other way around (detailed-design §6.4)
     @ArchTest
     static final ArchRule modulesDoNotDependOnConfig = noClasses()
-            .that().resideInAnyPackage(SHARED, IDENTITY, LEDGER, SYNC)
+            .that().resideInAnyPackage(SHARED, IDENTITY, LEDGER, SYNC, MAIL, NOTIFY)
             .should().dependOnClassesThat().resideInAPackage(CONFIG);
 
     @ArchTest

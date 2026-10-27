@@ -99,6 +99,46 @@ class PushServiceIT {
     }
 
     @Test
+    void severalTagsWithColorSyncAndOlderClientsStillSendOne() throws Exception {
+        UUID going = UUID.randomUUID();
+        UUID twoTags = UUID.randomUUID();
+        UUID oneTag = UUID.randomUUID();
+        Map<String, Object> withTags = expense(50000, food);
+        withTags.put("tagIds", List.of(trip.toString(), going.toString()));
+        // A 1.6 app sends only tagId and no color (ADR-0015)
+        Map<String, Object> legacy = expense(12000, food);
+        legacy.put("tagId", trip.toString());
+        push(change("account", account, T1, null, account("Bancolombia")),
+                change("category", food, T1, null, category("Comida", "EXPENSE", null)),
+                change("tag", trip, T1, null, Map.of("name", "Viaje", "pinned", false, "color", "#4F6D8A")),
+                change("tag", going, T1, null, Map.of("name", "Salidas", "pinned", false)),
+                change("transaction", twoTags, T1, null, withTags),
+                change("transaction", oneTag, T1, null, legacy))
+                .andExpect(jsonPath("$.results[*].status").value(everyItem(is("APPLIED"))))
+                .andExpect(Contract.matchesComposed());
+
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andReturn().getResponse().getContentAsString());
+        Map<String, JsonNode> byId = new LinkedHashMap<>();
+        pulled.get("changes").forEach(c -> byId.put(c.get("id").asText(), c.get("data")));
+        assertThat(byId.get(trip.toString()).get("color").asText()).isEqualTo("#4F6D8A");
+        assertThat(byId.get(twoTags.toString()).get("tagIds")).hasSize(2);
+        assertThat(byId.get(twoTags.toString()).get("tagId").asText()).isEqualTo(trip.toString());
+        assertThat(byId.get(oneTag.toString()).get("tagIds").get(0).asText()).isEqualTo(trip.toString());
+
+        // A tag update from a 1.6 app keeps the stored color
+        push(change("tag", trip, T2, null, Map.of("name", "Viaje Cartagena", "pinned", true)))
+                .andExpect(jsonPath("$.results[0].status").value("APPLIED"));
+        assertThat(jdbc.queryForObject("SELECT color FROM tags WHERE id = ?", String.class, trip)).isEqualTo("#4F6D8A");
+
+        Map<String, Object> unknownTag = expense(1000, food);
+        unknownTag.put("tagIds", List.of(UUID.randomUUID().toString()));
+        push(change("transaction", UUID.randomUUID(), T1, null, unknownTag))
+                .andExpect(jsonPath("$.results[0].status").value("REJECTED"))
+                .andExpect(jsonPath("$.results[0].code").value("FIN-REFERENCE"));
+    }
+
+    @Test
     void aCategoryExcludedFromReportsSyncsBothWaysAndOlderClientsLeaveItIncluded() throws Exception {
         UUID savings = UUID.randomUUID();
         Map<String, Object> excluded = category("Ahorros", "EXPENSE", null);

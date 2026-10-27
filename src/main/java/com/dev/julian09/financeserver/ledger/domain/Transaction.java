@@ -2,11 +2,14 @@ package com.dev.julian09.financeserver.ledger.domain;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** Expense, income or transfer (V6). Amounts are always positive; the type gives the direction. */
 @Entity
@@ -33,6 +36,11 @@ public class Transaction extends SyncableEntity {
 
     @Column(name = "tag_id")
     private UUID tagId;
+
+    // ADR-0015: every tag of the movement; tag_id keeps the first one for 1.6 clients
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "tag_ids", nullable = false)
+    private UUID[] tagIds;
 
     @Column(length = 500)
     private String note;
@@ -78,6 +86,8 @@ public class Transaction extends SyncableEntity {
     public UUID getCategoryId() { return categoryId; }
 
     public UUID getTagId() { return tagId; }
+
+    public List<UUID> getTagIds() { return List.of(tagIds); }
 
     public String getNote() { return note; }
 

@@ -36,6 +36,13 @@ public class User {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    // ADR-0014: the +code of the forwarding address, and Gmail's code to accept the forward once
+    @Column(name = "mail_code", nullable = false, length = 12)
+    private String mailCode;
+
+    @Column(name = "forwarding_confirmation", length = 30)
+    private String forwardingConfirmation;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -52,6 +59,7 @@ public class User {
         this.displayName = displayName;
         this.passwordHash = passwordHash;
         this.currency = "COP";
+        this.mailCode = newMailCode();
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -68,6 +76,27 @@ public class User {
         this.googleSubject = subject;
         this.updatedAt = now;
     }
+
+    /** REQ-AUT-09: also gives a Google-only user a password. */
+    public void changePassword(String passwordHash, Instant now) {
+        this.passwordHash = passwordHash;
+        this.updatedAt = now;
+    }
+
+    // 8 of a-z and 2-9 without l, o, 0 and 1, which read alike; the unique index refuses the rare repeat
+    private static String newMailCode() {
+        String alphabet = "abcdefghijkmnpqrstuvwxyz23456789";
+        StringBuilder code = new StringBuilder();
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        for (int i = 0; i < 8; i++) {
+            code.append(alphabet.charAt(random.nextInt(alphabet.length())));
+        }
+        return code.toString();
+    }
+
+    public String getMailCode() { return mailCode; }
+
+    public String getForwardingConfirmation() { return forwardingConfirmation; }
 
     public UUID getId() { return id; }
 

@@ -28,6 +28,11 @@ public class Account extends SyncableEntity {
     @Column(name = "include_in_net", nullable = false)
     private boolean includeInNet;
 
+    // REQ-COR-06: matches the digits of a bank email
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "last_digits", length = 4)
+    private String lastDigits;
+
     @Column(nullable = false)
     private boolean active;
 
@@ -59,6 +64,8 @@ public class Account extends SyncableEntity {
     public boolean isIncludeInTotal() { return includeInTotal; }
 
     public boolean isIncludeInNet() { return includeInNet; }
+
+    public String getLastDigits() { return lastDigits; }
 
     public boolean isActive() { return active; }
 
