@@ -53,7 +53,9 @@ public class MailListener {
             log.info("Mail reading is off: MAIL_IMAP_USER or MAIL_IMAP_PASSWORD is not set");
             return;
         }
-        Thread.ofVirtual().name("mail-listener").start(this::loop);
+        // A platform thread: IMAP IDLE blocks inside synchronized code, which pins a virtual thread's carrier on Java 21.
+        // With one CPU (Render's free plan) that was the only carrier, so every request hung and the health check failed
+        Thread.ofPlatform().daemon().name("mail-listener").start(this::loop);
     }
 
     public void stop() {
