@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-10-27
+
+### Fixed
+
+- The log says why an inbound email was ignored or failed (no `+code` in the recipients, an unknown code, Gmail's forwarding confirmation, no reader for the text), as `inbound_messages.error` already did
+- A rejected FCM notice logs FCM's status and error body, or why the access token could not be obtained, instead of a bare warning
+
 ## [2.0.1] - 2026-10-27
 
 ### Fixed
