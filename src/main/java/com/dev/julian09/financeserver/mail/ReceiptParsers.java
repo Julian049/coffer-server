@@ -27,6 +27,10 @@ public final class ReceiptParsers {
     private static final Pattern BANCOLOMBIA_RECEIVED = Pattern.compile(
             "recibiste una transferencia de (.+?) por " + MONEY + " en tu cuenta \\*?(\\d{4}).*? el (\\d{2}/\\d{2}/\\d{2,4}) "
                     + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)", Pattern.DOTALL);
+    // «Compraste COP24.900,00 en ALMACENES EXITO INVE con tu T.Cred *6858, el 28/10/2026 a las 09:02»
+    private static final Pattern BANCOLOMBIA_BOUGHT = Pattern.compile(
+            "Compraste (?:COP|\\$)\\s?([0-9][0-9.,]*) en (.+?) con tu [^*]{1,20}\\*(\\d{4}),? el (\\d{2}/\\d{2}/\\d{2,4}) "
+                    + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)");
     private static final Pattern RAPPI_AMOUNT = Pattern.compile("Monto\\s+" + MONEY);
     private static final Pattern RAPPI_CARD = Pattern.compile("M[ée]todo de pago\\s+\\*?(\\d{4})");
     private static final Pattern RAPPI_MERCHANT = Pattern.compile("Comercio\\s+([^\\n]+)");
@@ -39,6 +43,11 @@ public final class ReceiptParsers {
         String text = body.replace(' ', ' ').replace("\r", "");
         String flat = text.replaceAll("\\s+", " ");
         Matcher m = BANCOLOMBIA_PAID.matcher(flat);
+        if (m.find()) {
+            return Optional.of(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", amount(m.group(1)), dayFirst(m.group(4), m.group(5)),
+                    clean(m.group(2)), m.group(3)));
+        }
+        m = BANCOLOMBIA_BOUGHT.matcher(flat);
         if (m.find()) {
             return Optional.of(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", amount(m.group(1)), dayFirst(m.group(4), m.group(5)),
                     clean(m.group(2)), m.group(3)));

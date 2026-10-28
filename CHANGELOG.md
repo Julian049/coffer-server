@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-28
+
+### Fixed
+
+- Bancolombia credit card purchase emails («Compraste COP24.900,00 en … con tu T.Cred *6858, el 28/10/2026 a las 09:02») become drafts; no reader knew them, so they ended FAILED
+
 ## [2.1.0] - 2026-10-27
 
 ### Security
