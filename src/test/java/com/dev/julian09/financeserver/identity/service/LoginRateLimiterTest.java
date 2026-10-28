@@ -43,6 +43,20 @@ class LoginRateLimiterTest {
     }
 
     @Test
+    void capsPerAccountEvenAcrossDifferentIps() {
+        // Simulates a proxy that hands a different client IP each request: the per-(IP, identifier) window never fills,
+        // but the account backstop still trips after 10 attempts (S23-SEC03).
+        for (int i = 0; i < 10; i++) {
+            String rotatingIp = "9.9.9." + i;
+            limiter.check(rotatingIp, "julian");
+            limiter.checkAccount("julian");
+        }
+        assertThatNoException().isThrownBy(() -> limiter.check("9.9.9.99", "julian"));  // per-IP never filled
+        assertThatThrownBy(() -> limiter.checkAccount("JULIAN")).isInstanceOf(RateLimitException.class);
+        assertThatNoException().isThrownBy(() -> limiter.checkAccount("otra"));  // another account is unaffected
+    }
+
+    @Test
     void theWindowSlides() {
         for (int i = 0; i < 5; i++) {
             limiter.check("1.1.1.1", "julian");
