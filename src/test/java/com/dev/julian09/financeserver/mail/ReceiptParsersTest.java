@@ -32,6 +32,24 @@ class ReceiptParsersTest {
     }
 
     @Test
+    void aBancolombiaCardPurchaseIsAnExpenseAtThatMerchant() {
+        // As MailListener leaves the HTML-only email (2026-10-28), entities still in
+        String direct = """
+                ¡Listo! Todo sali&oacute; bien con tus movimientos Bancolombia: Compraste COP24.900,00 en ALMACENES EXITO INVE \
+                con tu T.Cred *6858, el 28/10/2026 a las 09:02. Si tienes dudas, encuentranos aqui: 6045109095 o 018000931987.
+                """;
+        ParsedReceipt expected = new ParsedReceipt("BANCOLOMBIA", "EXPENSE", new BigDecimal("24900.0000"),
+                Instant.parse("2026-10-28T14:02:00Z"), "ALMACENES EXITO INVE", "6858");
+        assertThat(ReceiptParsers.parse(direct)).contains(expected);
+        // The same email forwarded from Gmail
+        assertThat(ReceiptParsers.parse("""
+                [image: yellow-icon] ¡Listo! Todo salió bien con tus movimientos Bancolombia: Compraste COP24.900,00 en \
+                ALMACENES EXITO INVE con tu T.Cred *6858, el 28/10/2026 a las 09:02. Si tienes dudas, encuentranos aqui: \
+                6045109095 <(604)%20510-9095> o 018000931987.
+                """)).contains(expected);
+    }
+
+    @Test
     void aRappiCardPurchaseReadsItsLabelledLines() {
         ParsedReceipt r = ReceiptParsers.parse("""
                 ¡Hola, JULIAN DAVID BOCANEGRA SEGURA!
