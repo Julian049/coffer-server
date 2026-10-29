@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- V17 adds `categories.color` (`#RRGGBB`, optional); it syncs both ways and a push without it keeps the stored color (REQ-CAT-05, 2.2).
+
 ## [2.1.1] - 2026-10-28
 
 ### Fixed

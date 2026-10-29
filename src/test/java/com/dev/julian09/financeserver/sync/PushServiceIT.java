@@ -158,6 +158,23 @@ class PushServiceIT {
     }
 
     @Test
+    void aCategoryColorSyncsAndAnOlderClientThatOmitsItKeepsIt() throws Exception {
+        UUID id = UUID.randomUUID();
+        Map<String, Object> coloured = category("Comida", "EXPENSE", null);
+        coloured.put("color", "#2E7D32");
+        push(change("category", id, T1, null, coloured)).andExpect(status().isOk());
+        push(change("category", id, T2, null, category("Comida", "EXPENSE", null))).andExpect(status().isOk());
+
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andReturn().getResponse().getContentAsString());
+        pulled.get("changes").forEach(c -> {
+            if (c.get("id").asText().equals(id.toString())) {
+                assertThat(c.get("data").get("color").asText()).isEqualTo("#2E7D32");
+            }
+        });
+    }
+
+    @Test
     void theLoanPaymentCategoryAndTheNetFlagSyncAndOlderClientsKeepThem() throws Exception {
         UUID debts = UUID.randomUUID();
         UUID salary = UUID.randomUUID();

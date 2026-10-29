@@ -15,12 +15,13 @@ public class CategorySyncHandler extends SyncHandler<CategoryData> {
 
     private static final String UPSERT = """
             INSERT INTO categories AS t (id, user_id, parent_id, name, kind, is_base, system_key, icon, sort_order,
-                exclude_from_reports, created_at, updated_at, deleted_at)
-            VALUES (:id, :userId, :parentId, :name, :kind, :isBase, :systemKey, :icon, :sortOrder, :excludeFromReports,
+                exclude_from_reports, color, created_at, updated_at, deleted_at)
+            VALUES (:id, :userId, :parentId, :name, :kind, :isBase, :systemKey, :icon, :sortOrder, :excludeFromReports, :color,
                 :createdAt, :updatedAt, :deletedAt)
             ON CONFLICT (id) DO UPDATE SET parent_id = EXCLUDED.parent_id, name = EXCLUDED.name, kind = EXCLUDED.kind,
                 is_base = EXCLUDED.is_base, system_key = EXCLUDED.system_key, icon = EXCLUDED.icon,
                 sort_order = EXCLUDED.sort_order, exclude_from_reports = EXCLUDED.exclude_from_reports,
+                color = COALESCE(EXCLUDED.color, t.color),
                 updated_at = EXCLUDED.updated_at, deleted_at = EXCLUDED.deleted_at
             WHERE t.user_id = EXCLUDED.user_id AND EXCLUDED.updated_at > t.updated_at
             RETURNING version
@@ -79,6 +80,7 @@ public class CategorySyncHandler extends SyncHandler<CategoryData> {
                 .addValue("systemKey", d.systemKey())
                 .addValue("icon", d.icon())
                 .addValue("sortOrder", d.sortOrder())
-                .addValue("excludeFromReports", d.excluded()));
+                .addValue("excludeFromReports", d.excluded())
+                .addValue("color", d.color()));
     }
 }

@@ -5,6 +5,8 @@ import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "categories")
@@ -34,6 +36,10 @@ public class Category extends SyncableEntity {
     @Column(name = "exclude_from_reports", nullable = false)
     private boolean excludeFromReports;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(length = 7)
+    private String color;
+
     protected Category() {
     }
 
@@ -52,4 +58,6 @@ public class Category extends SyncableEntity {
     public int getSortOrder() { return sortOrder; }
 
     public boolean isExcludeFromReports() { return excludeFromReports; }
+
+    public String getColor() { return color; }
 }
