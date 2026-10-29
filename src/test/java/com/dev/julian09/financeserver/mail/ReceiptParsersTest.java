@@ -96,6 +96,18 @@ class ReceiptParsersTest {
     }
 
     @Test
+    void aBancolombiaTransferToAnAccountAndAPayrollPaymentAreRead() {
+        assertThat(ReceiptParsers.parse("Bancolombia: Transferiste $6,600.00 desde tu cuenta *2309 a la cuenta *3203104051 el 29/10/26 "
+                + "a las 11:50. ¿Dudas? Llamanos al 018000931987."))
+                .contains(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", new BigDecimal("6600.0000"),
+                        Instant.parse("2026-10-29T16:50:00Z"), "cuenta *3203104051", "2309"));
+        assertThat(ReceiptParsers.parse("Bancolombia: Recibiste un pago de Nomina de ALMACENES EXITO por $425,264.00 en tu cuenta de "
+                + "Ahorros el 29/10/2026 a las 12:46. Si tienes dudas, llamanos al 018000931987."))
+                .contains(new ParsedReceipt("BANCOLOMBIA", "INCOME", new BigDecimal("425264.0000"),
+                        Instant.parse("2026-10-29T17:46:00Z"), "Nomina de ALMACENES EXITO", null));
+    }
+
+    @Test
     void moneyReceivedInRappiCuentaIsAnIncomeFromThatBank() {
         assertThat(ReceiptParsers.parse("¡Hola, Julian David!\n¡Recibiste una transferencia de dinero directamente en tu RappiCuenta! "
                 + "Esta transferencia se realizó a través de tus llaves.\nAquí los detalles:\nMonto recibido\n$1.000.000\nBanco\nBancolombia\n"

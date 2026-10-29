@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-29
+
 ### Added
 
 - V17 adds `categories.color` (`#RRGGBB`, optional); it syncs both ways and a push without it keeps the stored color (REQ-CAT-05, 2.2).
+- Two more Bancolombia emails are read: «Transferiste … desde tu cuenta *2309 a la cuenta *3203104051» (an expense to that account) and «Recibiste un pago de Nomina de … en tu cuenta de Ahorros» (an income, without digits; pick the account in Revisar).
 - Two bank emails are read as drafts: a Bancolombia transfer sent through a key («transferiste $… la llave … desde tu cuenta *2309 …») is an expense to that person, and money received in RappiCuenta («Monto recibido») is an income from the bank that sent it (source `RAPPICARD`, no digits).
 
 ### Fixed
