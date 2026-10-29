@@ -33,7 +33,15 @@ public final class ReceiptParsers {
                     + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)");
     // «transferiste $1,000,000.00 la llave @rp123 desde tu cuenta *2309 Julian David Bocanegra Segura el 29/10/26 a las 10:36»
     private static final Pattern BANCOLOMBIA_SENT = Pattern.compile(
-            "transferiste " + MONEY + " (?:a la llave |la llave |a )?(.+?) desde tu cuenta \\*?(\\d{4})(?: (?:a )?(.+?))? el (\\d{2}/\\d{2}/\\d{2,4}) "
+            "[Tt]ransferiste " + MONEY + " (?:a la llave |la llave |a )?(.+?) desde tu cuenta \\*?(\\d{4})(?: (?:a )?(.+?))? el (\\d{2}/\\d{2}/\\d{2,4}) "
+                    + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)");
+    // «Transferiste $6,600.00 desde tu cuenta *2309 a la cuenta *3203104051 el 29/10/26 a las 11:50»
+    private static final Pattern BANCOLOMBIA_SENT_ACCOUNT = Pattern.compile(
+            "[Tt]ransferiste " + MONEY + " desde tu cuenta \\*?(\\d{4}) a (?:la )?(cuenta \\*?\\d+) el (\\d{2}/\\d{2}/\\d{2,4}) "
+                    + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)");
+    // «Recibiste un pago de Nomina de ALMACENES EXITO por $425,264.00 en tu cuenta de Ahorros el 29/10/2026 a las 12:46» (no digits)
+    private static final Pattern BANCOLOMBIA_PAYMENT = Pattern.compile(
+            "Recibiste un pago de (.+?) por " + MONEY + " en tu cuenta de \\w+ el (\\d{2}/\\d{2}/\\d{2,4}) "
                     + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)");
     // RappiCuenta: «Monto recibido $1.000.000 Banco Bancolombia Nro. de transacción 3876759 Fecha de la transacción 29 de octubre de 2026 Hora de la transacción 10:36 am»
     private static final Pattern RAPPIPAY_AMOUNT = Pattern.compile("Monto recibido\\s+" + MONEY);
@@ -70,6 +78,16 @@ public final class ReceiptParsers {
             String to = m.group(4) != null ? m.group(4) : m.group(2);
             return Optional.of(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", amount(m.group(1)), dayFirst(m.group(5), m.group(6)),
                     clean(to), m.group(3)));
+        }
+        m = BANCOLOMBIA_SENT_ACCOUNT.matcher(flat);
+        if (m.find()) {
+            return Optional.of(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", amount(m.group(1)), dayFirst(m.group(4), m.group(5)),
+                    clean(m.group(3)), m.group(2)));
+        }
+        m = BANCOLOMBIA_PAYMENT.matcher(flat);
+        if (m.find()) {
+            return Optional.of(new ParsedReceipt("BANCOLOMBIA", "INCOME", amount(m.group(2)), dayFirst(m.group(3), m.group(4)),
+                    clean(m.group(1)), null));
         }
         m = BANCOLOMBIA_RECEIVED.matcher(flat);
         if (m.find()) {
