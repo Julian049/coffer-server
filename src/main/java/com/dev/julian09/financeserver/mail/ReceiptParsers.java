@@ -31,6 +31,26 @@ public final class ReceiptParsers {
     private static final Pattern BANCOLOMBIA_BOUGHT = Pattern.compile(
             "Compraste (?:COP|\\$)\\s?([0-9][0-9.,]*) en (.+?) con tu [^*]{1,20}\\*(\\d{4}),? el (\\d{2}/\\d{2}/\\d{2,4}) "
                     + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)");
+    // «transferiste $1,000,000.00 la llave @rp123 desde tu cuenta *2309 Julian David Bocanegra Segura el 29/10/26 a las 10:36»
+    private static final Pattern BANCOLOMBIA_SENT = Pattern.compile(
+            "[Tt]ransferiste " + MONEY + " (?:a la llave |la llave |a )?(.+?) desde tu cuenta \\*?(\\d{4})(?: (?:a )?(.+?))? el (\\d{2}/\\d{2}/\\d{2,4}) "
+                    + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)");
+    // «Transferiste $6,600.00 desde tu cuenta *2309 a la cuenta *3203104051 el 29/10/26 a las 11:50»
+    private static final Pattern BANCOLOMBIA_SENT_ACCOUNT = Pattern.compile(
+            "[Tt]ransferiste " + MONEY + " desde tu cuenta \\*?(\\d{4}) a (?:la )?(cuenta \\*?\\d+) el (\\d{2}/\\d{2}/\\d{2,4}) "
+                    + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)");
+    // «Recibiste un pago de Nomina de ALMACENES EXITO por $425,264.00 en tu cuenta de Ahorros el 29/10/2026 a las 12:46» (no digits)
+    private static final Pattern BANCOLOMBIA_PAYMENT = Pattern.compile(
+            "Recibiste un pago de (.+?) por " + MONEY + " en tu cuenta de \\w+ el (\\d{2}/\\d{2}/\\d{2,4}) "
+                    + "(?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)");
+    // RappiCuenta: «Monto recibido $1.000.000 Banco Bancolombia Nro. de transacción 3876759 Fecha de la transacción 29 de octubre de 2026 Hora de la transacción 10:36 am»
+    private static final Pattern RAPPIPAY_AMOUNT = Pattern.compile("Monto recibido\\s+" + MONEY);
+    private static final Pattern RAPPIPAY_BANK = Pattern.compile("Banco\\s+(.+?)\\s+Nro\\.");
+    private static final Pattern RAPPIPAY_DATE = Pattern.compile(
+            "Fecha de la transacci[óo]n\\s+(\\d{1,2}) de ([a-záéíóú]+) de (\\d{4})\\s+Hora de la transacci[óo]n\\s+(\\d{1,2}:\\d{2})\\s*([ap])\\.?\\s?m",
+            Pattern.CASE_INSENSITIVE);
+    private static final List<String> MONTHS = List.of("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+            "septiembre", "octubre", "noviembre", "diciembre");
     private static final Pattern RAPPI_AMOUNT = Pattern.compile("Monto\\s+" + MONEY);
     private static final Pattern RAPPI_CARD = Pattern.compile("M[ée]todo de pago\\s+\\*?(\\d{4})");
     private static final Pattern RAPPI_MERCHANT = Pattern.compile("Comercio\\s+([^\\n]+)");
@@ -52,12 +72,47 @@ public final class ReceiptParsers {
             return Optional.of(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", amount(m.group(1)), dayFirst(m.group(4), m.group(5)),
                     clean(m.group(2)), m.group(3)));
         }
+        m = BANCOLOMBIA_SENT.matcher(flat);
+        if (m.find()) {
+            // The name after the account is who got it; without it, the key it went to
+            String to = m.group(4) != null ? m.group(4) : m.group(2);
+            return Optional.of(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", amount(m.group(1)), dayFirst(m.group(5), m.group(6)),
+                    clean(to), m.group(3)));
+        }
+        m = BANCOLOMBIA_SENT_ACCOUNT.matcher(flat);
+        if (m.find()) {
+            return Optional.of(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", amount(m.group(1)), dayFirst(m.group(4), m.group(5)),
+                    clean(m.group(3)), m.group(2)));
+        }
+        m = BANCOLOMBIA_PAYMENT.matcher(flat);
+        if (m.find()) {
+            return Optional.of(new ParsedReceipt("BANCOLOMBIA", "INCOME", amount(m.group(2)), dayFirst(m.group(3), m.group(4)),
+                    clean(m.group(1)), null));
+        }
         m = BANCOLOMBIA_RECEIVED.matcher(flat);
         if (m.find()) {
             return Optional.of(new ParsedReceipt("BANCOLOMBIA", "INCOME", amount(m.group(2)), dayFirst(m.group(4), m.group(5)),
                     clean(m.group(1)), m.group(3)));
         }
-        return rappi(text);
+        Optional<ParsedReceipt> pay = rappiPay(flat);
+        return pay.isPresent() ? pay : rappi(text);
+    }
+
+    // shortcut: money received in RappiCuenta shares the RAPPICARD source and has no digits; add its own source when it needs account matching
+    private static Optional<ParsedReceipt> rappiPay(String flat) {
+        Matcher amount = RAPPIPAY_AMOUNT.matcher(flat);
+        Matcher date = RAPPIPAY_DATE.matcher(flat);
+        int month = date.find() ? MONTHS.indexOf(date.group(2).toLowerCase()) : -1;
+        if (!flat.contains("Recibiste una transferencia") || !amount.find() || month < 0) {
+            return Optional.empty();
+        }
+        String[] hm = date.group(4).split(":");
+        int hour = Integer.parseInt(hm[0]) % 12 + (date.group(5).equalsIgnoreCase("p") ? 12 : 0);
+        Matcher bank = RAPPIPAY_BANK.matcher(flat);
+        return Optional.of(new ParsedReceipt("RAPPICARD", "INCOME", amount(amount.group(1)),
+                LocalDateTime.of(Integer.parseInt(date.group(3)), month + 1, Integer.parseInt(date.group(1)), hour, Integer.parseInt(hm[1]))
+                        .atZone(BOGOTA).toInstant(),
+                bank.find() ? clean(bank.group(1)) : null, null));
     }
 
     // RappiCard writes each label and its value on separate lines
