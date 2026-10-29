@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * Keeps an IMAP IDLE connection to Coffer's Gmail (ADR-0014): on connecting and on every wake-up it reads what is in the
@@ -38,7 +39,10 @@ public class MailListener {
     private final InboundMessageService inbound;
     private final String user;
     private final String password;
+    private static final Duration INITIAL_BACKOFF = Duration.ofSeconds(5);
+
     private volatile boolean running = true;
+    private volatile boolean connected;
 
     public MailListener(InboundMessageService inbound, @Value("${finance.mail.imap-user:}") String user,
                         @Value("${finance.mail.imap-password:}") String password) {
@@ -63,12 +67,17 @@ public class MailListener {
     }
 
     private void loop() {
-        Duration backoff = Duration.ofSeconds(5);
+        Duration backoff = INITIAL_BACKOFF;
         while (running) {
+            connected = false;
             try {
                 listen();
-                backoff = Duration.ofSeconds(5);
+                backoff = INITIAL_BACKOFF;
             } catch (MessagingException | RuntimeException e) {
+                // A connection that worked and was then dropped by Gmail (about every 40 min) retries soon; only failing to connect backs off
+                if (connected) {
+                    backoff = INITIAL_BACKOFF;
+                }
                 log.warn("Mail connection lost, retrying in {} s: {}", backoff.toSeconds(), e.getMessage());
                 sleep(backoff);
                 backoff = backoff.multipliedBy(2).compareTo(MAX_BACKOFF) > 0 ? MAX_BACKOFF : backoff.multipliedBy(2);
@@ -85,6 +94,7 @@ public class MailListener {
         store.connect("imap.gmail.com", 993, user, password);
         try (store; IMAPFolder inbox = (IMAPFolder) store.getFolder("INBOX")) {
             inbox.open(Folder.READ_WRITE);
+            connected = true;
             log.info("Mail reading connected");
             while (running && store.isConnected()) {
                 drain(inbox);
@@ -136,10 +146,11 @@ public class MailListener {
             return part.getContent().toString();
         }
         if (part.isMimeType("text/html")) {
-            return part.getContent().toString()
+            // Entities become letters («transacci&oacute;n»), or the readers' labels would not match (RappiCard in HTML)
+            return HtmlUtils.htmlUnescape(part.getContent().toString()
+                    .replaceAll("(?is)<(style|script)[^>]*>.*?</\\1>", " ")
                     .replaceAll("(?i)<br\\s*/?>|</p>|</div>|</tr>|</td>", "\n")
-                    .replaceAll("<[^>]+>", " ")
-                    .replace("&nbsp;", " ").replace("&amp;", "&").replace("&iexcl;", "¡").replace("&iquest;", "¿");
+                    .replaceAll("<[^>]+>", " "));
         }
         if (part.isMimeType("multipart/*")) {
             Multipart multipart = (Multipart) part.getContent();

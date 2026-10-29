@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- V17 adds `categories.color` (`#RRGGBB`, optional); it syncs both ways and a push without it keeps the stored color (REQ-CAT-05, 2.2).
+- Two bank emails are read as drafts: a Bancolombia transfer sent through a key («transferiste $… la llave … desde tu cuenta *2309 …») is an expense to that person, and money received in RappiCuenta («Monto recibido») is an income from the bank that sent it (source `RAPPICARD`, no digits).
+
+### Fixed
+
+- RappiCard emails that come only as HTML no longer end FAILED: the HTML is now decoded with all its entities (`transacci&oacute;n` kept the readers' labels from matching) and its `<style>` is dropped.
+- The mail listener retries in 5 s after a connection that had worked is dropped by Gmail; the backoff only grows while connecting itself fails (it used to climb to 10 minutes and stay there).
+
 ## [2.1.1] - 2026-10-28
 
 ### Fixed

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Coffer Server API
-  version: 2.0.0
+  version: 2.2.0
   summary: Autenticación, respaldo y sincronización de Coffer.
   description: |
     Contrato del servicio en la nube de Coffer (SRS v1.0 §7.3, ADR-0012).
@@ -867,6 +867,12 @@ components:
           type: boolean
           default: false
           description: REQ-CAT-04 (1.1.0). Opcional; si falta se guarda false.
+        color:
+          type: [string, 'null']
+          pattern: '^#[0-9A-F]{6}$'
+          description: |
+            REQ-CAT-05 (2.2.0). Color elegido para una categoría principal. Si falta o es `null` se conserva
+            el guardado (igual que `tags.color`), para que un cliente 2.1 no lo pierda al editar.
     PasswordResetRequest:
       type: object
       required: [email]

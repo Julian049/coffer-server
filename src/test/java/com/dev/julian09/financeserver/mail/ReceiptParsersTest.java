@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
+import jakarta.mail.internet.MimeBodyPart;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,6 +85,36 @@ class ReceiptParsersTest {
                 + "No. de autorización\n\n669292\n\nComercio\n\nRAPPI\n\nFecha de la transacción\n\n2026-10-24 21:18:36\n"))
                 .get().extracting(ParsedReceipt::amount, ParsedReceipt::merchant)
                 .containsExactly(new BigDecimal("16300.0000"), "RAPPI");
+    }
+
+    @Test
+    void aBancolombiaTransferSentThroughAKeyIsAnExpenseToThatPerson() {
+        assertThat(ReceiptParsers.parse("Bancolombia: JULIAN, transferiste $1,000,000.00 la llave @rp1077143003 desde tu cuenta *2309 "
+                + "a Julian David Bocanegra Segura el 29/10/26 a las 10:36. Con Bre-b es de una y gratis. Dudas al 018000912345."))
+                .contains(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", new BigDecimal("1000000.0000"),
+                        Instant.parse("2026-10-29T15:36:00Z"), "Julian David Bocanegra Segura", "2309"));
+    }
+
+    @Test
+    void moneyReceivedInRappiCuentaIsAnIncomeFromThatBank() {
+        assertThat(ReceiptParsers.parse("¡Hola, Julian David!\n¡Recibiste una transferencia de dinero directamente en tu RappiCuenta! "
+                + "Esta transferencia se realizó a través de tus llaves.\nAquí los detalles:\nMonto recibido\n$1.000.000\nBanco\nBancolombia\n"
+                + "Nro. de transacción\n3876759\nFecha de la transacción\n29 de octubre de 2026\nHora de la transacción\n10:36 am\n"))
+                .contains(new ParsedReceipt("RAPPICARD", "INCOME", new BigDecimal("1000000.0000"),
+                        Instant.parse("2026-10-29T15:36:00Z"), "Bancolombia", null));
+    }
+
+    @Test
+    void anHtmlRappiCardEmailKeepsItsLabelsAfterTheEntitiesAreDecoded() throws Exception {
+        MimeBodyPart html = new MimeBodyPart();
+        html.setContent("<style>td { color: red; }</style><div>Realizaste una compra con tu RappiCard.</div><div>Detalle de tu "
+                + "transacci&oacute;n:</div><div>Monto</div><div>$14.300</div><div>M&eacute;todo de pago</div><div>*5378</div>"
+                + "<div>No. de autorizaci&oacute;n</div><div>248555</div><div>Comercio</div><div>KFC</div>"
+                + "<div>Fecha de la transacci&oacute;n</div><div>2026-10-28 13:00:35</div>", "text/html");
+        html.setHeader("Content-Type", "text/html; charset=utf-8");
+        assertThat(ReceiptParsers.parse(MailListener.text(html)))
+                .get().extracting(ParsedReceipt::amount, ParsedReceipt::merchant, ParsedReceipt::lastDigits)
+                .containsExactly(new BigDecimal("14300.0000"), "KFC", "5378");
     }
 
     @Test
