@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-03
+
 ### Added
 
 - Mail rules sync (#120): V18 creates `mail_rules` (a provider, optionally with its last 4 digits, sent to one account of the user) and the new `mailRule` entity travels through push and pull (`MailRuleSyncHandler`, API 2.3.0). The phone applies the rules (REQ-COR-11, ADR-0010).
