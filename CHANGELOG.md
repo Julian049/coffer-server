@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-03
+
+### Security
+
+- Spring Boot 4.1.1 → 4.1.2. The weekly Dependency-Check had failed on `main` since 2026-10-19 with CVEs reported in `tomcat-embed-core` 11.0.24; the same scan passes on 4.1.2.
+
+### Changed
+
+- Build and test dependencies: JaCoCo 0.8.15 → 0.8.16, springdoc 3.1.1 → 3.2.0 (the OpenAPI page is off in production), the Maven minor/patch group and `gitleaks-action`. No migration and no contract change.
+
 ## [2.2.0] - 2026-10-29
 
 ### Added
