@@ -17,6 +17,6 @@ jobs:
         with:
           fetch-depth: 0
       # Free for personal accounts; scans the commits of the PR or push for secrets (S14-H04 follow-up)
-      - uses: gitleaks/gitleaks-action@v2.3.9
+      - uses: gitleaks/gitleaks-action@v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
