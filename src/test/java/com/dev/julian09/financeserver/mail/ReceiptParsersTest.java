@@ -14,7 +14,7 @@ class ReceiptParsersTest {
 
     // The order Spring gives them through @Order
     private static final ReceiptParsers PARSERS = new ReceiptParsers(
-            List.of(new BancolombiaReader(), new RappiCuentaReader(), new RappiCardReader()));
+            List.of(new BancolombiaReader(), new RappiCuentaReader(), new RappiCardReader(), new UberReader()));
 
     @Test
     void aBancolombiaPaymentIsAnExpenseOfThatProduct() {
@@ -139,6 +139,17 @@ class ReceiptParsersTest {
         assertThat(PARSERS.parse("Bancolombia: Compraste $2.979,00 en RAPPI COLOMBIA con tu T.Cred *6858, el 01/11/2026 a las 15:01."))
                 .contains(new ParsedReceipt("BANCOLOMBIA_TC", "EXPENSE", new BigDecimal("2979.0000"),
                         Instant.parse("2026-11-01T20:01:00Z"), "RAPPI COLOMBIA", "6858"));
+    }
+
+    @Test
+    void anUberReceiptIsAnExpenseOfThePaymentTimeAndCard() {
+        // The PO's trip of 2026-11-02, anonymized: only the lines the reader needs; the header's 10:05 AM is the request time
+        String body = "Nov 2, 2026\n10:05\u202fAM\nThanks for riding, Ana\n\nTotal COP\u00a04,917\n\nTrip fare COP 4,917\n\nPayments\n\n"
+                + "Mastercard \u2022\u2022\u2022\u20229533 (Nu CC) COP\u00a04,917\n11/2/26 10:24\u202fAM\n\nWant to switch your payment method?";
+        assertThat(PARSERS.parse(body)).contains(new ParsedReceipt("UBER", "EXPENSE", new BigDecimal("4917.0000"),
+                Instant.parse("2026-11-02T15:24:00Z"), "Uber", "9533"));
+        assertThat(PARSERS.parse(body.replace("10:24\u202fAM", "1:24 PM"))).get().extracting(ParsedReceipt::occurredAt)
+                .isEqualTo(Instant.parse("2026-11-02T18:24:00Z"));
     }
 
     @Test
