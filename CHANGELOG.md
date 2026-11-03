@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Email readers are modular (#119): `ReceiptReader`, one `@Component` per provider (`BancolombiaReader`, `RappiCuentaReader`, `RappiCardReader`) behind `ReceiptParsers`. A Bancolombia purchase with `T.Cred` is now `BANCOLOMBIA_TC` and money received in RappiCuenta is `RAPPICUENTA`; everything else reads as before.
+- V18 drops `ck_drafts_source` and widens `transaction_drafts.source` to 30 characters; the contract's `TransactionDraftData.source` is a pattern instead of an enum (API 2.3.0), so a new provider needs no migration (REQ-COR-13).
+
 ## [2.2.1] - 2026-11-03
 
 ### Security

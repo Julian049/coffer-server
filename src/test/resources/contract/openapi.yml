@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Coffer Server API
-  version: 2.2.0
+  version: 2.3.0
   summary: Autenticación, respaldo y sincronización de Coffer.
   description: |
     Contrato del servicio en la nube de Coffer (SRS v1.0 §7.3, ADR-0012).
@@ -892,7 +892,13 @@ components:
         al aplicarla o descartarla (en una actualización el servidor ignora `data`).
       required: [source, type, amount, occurredAt]
       properties:
-        source: { type: string, enum: [BANCOLOMBIA, RAPPICARD] }
+        source:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]{1,29}$'
+          description: |
+            El proveedor que la leyó (2.3.0: abierto, sin migración por proveedor nuevo). Hoy `BANCOLOMBIA`,
+            `BANCOLOMBIA_TC`, `RAPPICARD`, `RAPPICUENTA` y `UBER`; el cliente muestra el nombre de uno desconocido.
+          examples: [BANCOLOMBIA_TC]
         type: { type: string, enum: [EXPENSE, INCOME] }
         amount: { $ref: '#/components/schemas/PositiveAmount' }
         occurredAt: { $ref: '#/components/schemas/Instant' }
