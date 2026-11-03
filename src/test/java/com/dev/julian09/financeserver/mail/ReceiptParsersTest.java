@@ -12,9 +12,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** The PO's real email bodies (roadmap-v2.0 D3, 2026-10-26), with personal data kept as sent. */
 class ReceiptParsersTest {
 
+    // The order Spring gives them through @Order
+    private static final ReceiptParsers PARSERS = new ReceiptParsers(
+            List.of(new BancolombiaReader(), new RappiCuentaReader(), new RappiCardReader(), new UberReader()));
+
     @Test
     void aBancolombiaPaymentIsAnExpenseOfThatProduct() {
-        ParsedReceipt r = ReceiptParsers.parse("""
+        ParsedReceipt r = PARSERS.parse("""
                 Bancolombia: Pagaste $146,350.29 a Banco Caja Social S A Comerc desde tu producto 2309 el 26/10/2026 21:33:20. \
                 ¿Dudas? Llamanos al 6045109095. Estamos cerca
                 """).orElseThrow();
@@ -24,7 +28,7 @@ class ReceiptParsersTest {
 
     @Test
     void aBancolombiaTransferReceivedIsAnIncomeFromTheSender() {
-        ParsedReceipt r = ReceiptParsers.parse("""
+        ParsedReceipt r = PARSERS.parse("""
                 Bancolombia: Julian, recibiste una transferencia de JORGE ANDRES GONZALEZ DIAZ por $3,000.00 en tu cuenta *2309 \
                 conectada a la llave xx  el 26/10/26 a las 12:53. Con llaves es de una y gratis. Dudas al 018000912345.
                 """).orElseThrow();
@@ -39,11 +43,11 @@ class ReceiptParsersTest {
                 ¡Listo! Todo sali&oacute; bien con tus movimientos Bancolombia: Compraste COP24.900,00 en ALMACENES EXITO INVE \
                 con tu T.Cred *6858, el 28/10/2026 a las 09:02. Si tienes dudas, encuentranos aqui: 6045109095 o 018000931987.
                 """;
-        ParsedReceipt expected = new ParsedReceipt("BANCOLOMBIA", "EXPENSE", new BigDecimal("24900.0000"),
+        ParsedReceipt expected = new ParsedReceipt("BANCOLOMBIA_TC", "EXPENSE", new BigDecimal("24900.0000"),
                 Instant.parse("2026-10-28T14:02:00Z"), "ALMACENES EXITO INVE", "6858");
-        assertThat(ReceiptParsers.parse(direct)).contains(expected);
+        assertThat(PARSERS.parse(direct)).contains(expected);
         // The same email forwarded from Gmail
-        assertThat(ReceiptParsers.parse("""
+        assertThat(PARSERS.parse("""
                 [image: yellow-icon] ¡Listo! Todo salió bien con tus movimientos Bancolombia: Compraste COP24.900,00 en \
                 ALMACENES EXITO INVE con tu T.Cred *6858, el 28/10/2026 a las 09:02. Si tienes dudas, encuentranos aqui: \
                 6045109095 <(604)%20510-9095> o 018000931987.
@@ -52,7 +56,7 @@ class ReceiptParsersTest {
 
     @Test
     void aRappiCardPurchaseReadsItsLabelledLines() {
-        ParsedReceipt r = ReceiptParsers.parse("""
+        ParsedReceipt r = PARSERS.parse("""
                 ¡Hola, JULIAN DAVID BOCANEGRA SEGURA!
                 Realizaste una compra con tu RappiCard.
 
@@ -81,7 +85,7 @@ class ReceiptParsersTest {
         assertThat(r).isEqualTo(new ParsedReceipt("RAPPICARD", "EXPENSE", new BigDecimal("22980.0000"),
                 Instant.parse("2026-10-27T00:16:04Z"), "Tiendas D1", "5378"));
         // The PO's second example came without the greeting
-        assertThat(ReceiptParsers.parse("Detalle de tu transacción:\n\nMonto\n\n$16.300\n\nMétodo de pago\n\n*5378\n\n"
+        assertThat(PARSERS.parse("Detalle de tu transacción:\n\nMonto\n\n$16.300\n\nMétodo de pago\n\n*5378\n\n"
                 + "No. de autorización\n\n669292\n\nComercio\n\nRAPPI\n\nFecha de la transacción\n\n2026-10-24 21:18:36\n"))
                 .get().extracting(ParsedReceipt::amount, ParsedReceipt::merchant)
                 .containsExactly(new BigDecimal("16300.0000"), "RAPPI");
@@ -89,7 +93,7 @@ class ReceiptParsersTest {
 
     @Test
     void aBancolombiaTransferSentThroughAKeyIsAnExpenseToThatPerson() {
-        assertThat(ReceiptParsers.parse("Bancolombia: JULIAN, transferiste $1,000,000.00 la llave @rp1077143003 desde tu cuenta *2309 "
+        assertThat(PARSERS.parse("Bancolombia: JULIAN, transferiste $1,000,000.00 la llave @rp1077143003 desde tu cuenta *2309 "
                 + "a Julian David Bocanegra Segura el 29/10/26 a las 10:36. Con Bre-b es de una y gratis. Dudas al 018000912345."))
                 .contains(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", new BigDecimal("1000000.0000"),
                         Instant.parse("2026-10-29T15:36:00Z"), "Julian David Bocanegra Segura", "2309"));
@@ -97,11 +101,11 @@ class ReceiptParsersTest {
 
     @Test
     void aBancolombiaTransferToAnAccountAndAPayrollPaymentAreRead() {
-        assertThat(ReceiptParsers.parse("Bancolombia: Transferiste $6,600.00 desde tu cuenta *2309 a la cuenta *3203104051 el 29/10/26 "
+        assertThat(PARSERS.parse("Bancolombia: Transferiste $6,600.00 desde tu cuenta *2309 a la cuenta *3203104051 el 29/10/26 "
                 + "a las 11:50. ¿Dudas? Llamanos al 018000931987."))
                 .contains(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", new BigDecimal("6600.0000"),
                         Instant.parse("2026-10-29T16:50:00Z"), "cuenta *3203104051", "2309"));
-        assertThat(ReceiptParsers.parse("Bancolombia: Recibiste un pago de Nomina de ALMACENES EXITO por $425,264.00 en tu cuenta de "
+        assertThat(PARSERS.parse("Bancolombia: Recibiste un pago de Nomina de ALMACENES EXITO por $425,264.00 en tu cuenta de "
                 + "Ahorros el 29/10/2026 a las 12:46. Si tienes dudas, llamanos al 018000931987."))
                 .contains(new ParsedReceipt("BANCOLOMBIA", "INCOME", new BigDecimal("425264.0000"),
                         Instant.parse("2026-10-29T17:46:00Z"), "Nomina de ALMACENES EXITO", null));
@@ -109,10 +113,10 @@ class ReceiptParsersTest {
 
     @Test
     void moneyReceivedInRappiCuentaIsAnIncomeFromThatBank() {
-        assertThat(ReceiptParsers.parse("¡Hola, Julian David!\n¡Recibiste una transferencia de dinero directamente en tu RappiCuenta! "
+        assertThat(PARSERS.parse("¡Hola, Julian David!\n¡Recibiste una transferencia de dinero directamente en tu RappiCuenta! "
                 + "Esta transferencia se realizó a través de tus llaves.\nAquí los detalles:\nMonto recibido\n$1.000.000\nBanco\nBancolombia\n"
                 + "Nro. de transacción\n3876759\nFecha de la transacción\n29 de octubre de 2026\nHora de la transacción\n10:36 am\n"))
-                .contains(new ParsedReceipt("RAPPICARD", "INCOME", new BigDecimal("1000000.0000"),
+                .contains(new ParsedReceipt("RAPPICUENTA", "INCOME", new BigDecimal("1000000.0000"),
                         Instant.parse("2026-10-29T15:36:00Z"), "Bancolombia", null));
     }
 
@@ -124,9 +128,28 @@ class ReceiptParsersTest {
                 + "<div>No. de autorizaci&oacute;n</div><div>248555</div><div>Comercio</div><div>KFC</div>"
                 + "<div>Fecha de la transacci&oacute;n</div><div>2026-10-28 13:00:35</div>", "text/html");
         html.setHeader("Content-Type", "text/html; charset=utf-8");
-        assertThat(ReceiptParsers.parse(MailListener.text(html)))
+        assertThat(PARSERS.parse(MailListener.text(html)))
                 .get().extracting(ParsedReceipt::amount, ParsedReceipt::merchant, ParsedReceipt::lastDigits)
                 .containsExactly(new BigDecimal("14300.0000"), "KFC", "5378");
+    }
+
+    @Test
+    void aBancolombiaCreditCardPurchaseOfNovemberIsItsOwnProvider() {
+        // 2.3 acceptance: T.Cred → BANCOLOMBIA_TC; «desde tu producto» stays the account (aBancolombiaPaymentIsAnExpenseOfThatProduct)
+        assertThat(PARSERS.parse("Bancolombia: Compraste $2.979,00 en RAPPI COLOMBIA con tu T.Cred *6858, el 01/11/2026 a las 15:01."))
+                .contains(new ParsedReceipt("BANCOLOMBIA_TC", "EXPENSE", new BigDecimal("2979.0000"),
+                        Instant.parse("2026-11-01T20:01:00Z"), "RAPPI COLOMBIA", "6858"));
+    }
+
+    @Test
+    void anUberReceiptIsAnExpenseOfThePaymentTimeAndCard() {
+        // The PO's trip of 2026-11-02, anonymized: only the lines the reader needs; the header's 10:05 AM is the request time
+        String body = "Nov 2, 2026\n10:05\u202fAM\nThanks for riding, Ana\n\nTotal COP\u00a04,917\n\nTrip fare COP 4,917\n\nPayments\n\n"
+                + "Mastercard \u2022\u2022\u2022\u20229533 (Nu CC) COP\u00a04,917\n11/2/26 10:24\u202fAM\n\nWant to switch your payment method?";
+        assertThat(PARSERS.parse(body)).contains(new ParsedReceipt("UBER", "EXPENSE", new BigDecimal("4917.0000"),
+                Instant.parse("2026-11-02T15:24:00Z"), "Uber", "9533"));
+        assertThat(PARSERS.parse(body.replace("10:24\u202fAM", "1:24 PM"))).get().extracting(ParsedReceipt::occurredAt)
+                .isEqualTo(Instant.parse("2026-11-02T18:24:00Z"));
     }
 
     @Test
@@ -140,7 +163,7 @@ class ReceiptParsersTest {
 
     @Test
     void anUnknownTextIsNotGuessed() {
-        assertThat(ReceiptParsers.parse("Hola, tu extracto de octubre ya está disponible")).isEmpty();
+        assertThat(PARSERS.parse("Hola, tu extracto de octubre ya está disponible")).isEmpty();
     }
 
     @Test
