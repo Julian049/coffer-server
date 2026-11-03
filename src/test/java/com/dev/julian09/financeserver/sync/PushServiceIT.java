@@ -139,6 +139,39 @@ class PushServiceIT {
     }
 
     @Test
+    void aMailRuleSyncsBothWaysAndNeedsOneOfTheUsersAccounts() throws Exception {
+        UUID byProvider = UUID.randomUUID();
+        UUID byDigits = UUID.randomUUID();
+        // The rule comes first: the account it points to is ordered before it
+        push(change("mailRule", byProvider, T1, null, Map.of("source", "RAPPICUENTA", "accountId", savings.toString())),
+                change("mailRule", byDigits, T1, null, Map.of("source", "BANCOLOMBIA_TC", "lastDigits", "6858", "accountId", account.toString())),
+                change("account", account, T1, null, account("Visa")),
+                change("account", savings, T1, null, account("RappiCuenta")))
+                .andExpect(jsonPath("$.results[*].status").value(everyItem(is("APPLIED"))))
+                .andExpect(Contract.matchesComposed());
+
+        JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
+                .andExpect(Contract.matchesComposed()).andReturn().getResponse().getContentAsString());
+        Map<String, JsonNode> byId = new LinkedHashMap<>();
+        pulled.get("changes").forEach(c -> byId.put(c.get("id").asText(), c));
+        assertThat(byId.get(byProvider.toString()).get("entity").asText()).isEqualTo("mailRule");
+        assertThat(byId.get(byProvider.toString()).get("data").get("lastDigits").isNull()).isTrue();
+        assertThat(byId.get(byDigits.toString()).get("data").get("lastDigits").asText()).isEqualTo("6858");
+
+        // Pointing it to another account, then removing it, travel like any change
+        push(change("mailRule", byProvider, T2, null, Map.of("source", "RAPPICUENTA", "accountId", account.toString())),
+                change("mailRule", byDigits, T2, T2, Map.of("source", "BANCOLOMBIA_TC", "lastDigits", "6858", "accountId", account.toString())))
+                .andExpect(jsonPath("$.results[*].status").value(everyItem(is("APPLIED"))));
+        assertThat(jdbc.queryForObject("SELECT account_id FROM mail_rules WHERE id = ?", UUID.class, byProvider)).isEqualTo(account);
+        assertThat(jdbc.queryForObject("SELECT deleted_at IS NOT NULL FROM mail_rules WHERE id = ?", Boolean.class, byDigits)).isTrue();
+
+        push(change("mailRule", UUID.randomUUID(), T1, null, Map.of("source", "UBER", "accountId", UUID.randomUUID().toString())),
+                change("mailRule", UUID.randomUUID(), T1, null, Map.of("source", "uber", "accountId", account.toString())))
+                .andExpect(jsonPath("$.results[0].code").value("FIN-REFERENCE"))
+                .andExpect(jsonPath("$.results[1].code").value("FIN-VALIDATION"));
+    }
+
+    @Test
     void aCategoryExcludedFromReportsSyncsBothWaysAndOlderClientsLeaveItIncluded() throws Exception {
         UUID savings = UUID.randomUUID();
         Map<String, Object> excluded = category("Ahorros", "EXPENSE", null);

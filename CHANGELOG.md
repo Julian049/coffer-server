@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Mail rules sync (#120): V18 creates `mail_rules` (a provider, optionally with its last 4 digits, sent to one account of the user) and the new `mailRule` entity travels through push and pull (`MailRuleSyncHandler`, API 2.3.0). The phone applies the rules (REQ-COR-11, ADR-0010).
+- Uber as an email provider (#121): `UberReader` reads a trip receipt (`Total COP …`, the first payment method `••••9533` and its time, month first and 12-hour) as an expense at «Uber» with source `UBER`. Tested with an anonymized copy of a real receipt.
+
+### Changed
+
+- Email readers are modular (#119): `ReceiptReader`, one `@Component` per provider (`BancolombiaReader`, `RappiCuentaReader`, `RappiCardReader`) behind `ReceiptParsers`. A Bancolombia purchase with `T.Cred` is now `BANCOLOMBIA_TC` and money received in RappiCuenta is `RAPPICUENTA`; everything else reads as before.
+- V18 drops `ck_drafts_source` and widens `transaction_drafts.source` to 30 characters; the contract's `TransactionDraftData.source` is a pattern instead of an enum (API 2.3.0), so a new provider needs no migration (REQ-COR-13).
+
 ## [2.2.1] - 2026-11-03
 
 ### Security

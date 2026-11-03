@@ -28,11 +28,13 @@ public class InboundMessageService {
     private final JdbcTemplate jdbc;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final ReceiptParsers parsers;
 
-    public InboundMessageService(JdbcTemplate jdbc, ApplicationEventPublisher events, Clock clock) {
+    public InboundMessageService(JdbcTemplate jdbc, ApplicationEventPublisher events, Clock clock, ReceiptParsers parsers) {
         this.jdbc = jdbc;
         this.events = events;
         this.clock = clock;
+        this.parsers = parsers;
     }
 
     @Transactional
@@ -59,7 +61,7 @@ public class InboundMessageService {
             jdbc.update("UPDATE users SET forwarding_confirmation = ?, updated_at = ? WHERE id = ?", confirmation.get(), now, user.get());
             return finish(id, user, Outcome.IGNORED, "Confirmación de reenvío de Gmail");
         }
-        Optional<ParsedReceipt> receipt = ReceiptParsers.parse(body == null ? "" : body);
+        Optional<ParsedReceipt> receipt = parsers.parse(body == null ? "" : body);
         if (receipt.isEmpty()) {
             log.warn("No reader understood inbound message {}", id);
             return finish(id, user, Outcome.FAILED, "Ningún lector reconoce el correo");

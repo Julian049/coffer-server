@@ -56,11 +56,15 @@ public sealed interface EntityData {
 
     /** color is optional: 1.6 clients do not send it. */
     /** REQ-COR-02: created by the server from a bank email; the phone applies or discards it (pushes it deleted). */
-    record TransactionDraftData(@NotNull @Pattern(regexp = "BANCOLOMBIA|RAPPICARD") String source,
+    record TransactionDraftData(@NotNull @Pattern(regexp = "^[A-Z][A-Z0-9_]{1,29}$") String source,
                                 @NotNull @Pattern(regexp = "EXPENSE|INCOME") String type,
                                 @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal amount,
                                 @NotNull Instant occurredAt, @Size(max = 200) String merchant,
                                 @Pattern(regexp = "^[0-9]{4}$") String lastDigits) implements EntityData {
+    }
+
+    record MailRuleData(@NotNull @Pattern(regexp = "^[A-Z][A-Z0-9_]{1,29}$") String source,
+                        @Pattern(regexp = "^[0-9]{4}$") String lastDigits, @NotNull UUID accountId) implements EntityData {
     }
 
     record TagData(@NotBlank @Size(max = 50) String name, boolean pinned, @Pattern(regexp = "^#[0-9A-F]{6}$") String color)

@@ -14,7 +14,7 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "transaction_drafts")
 public class TransactionDraft extends SyncableEntity {
 
-    @Column(nullable = false, length = 12)
+    @Column(nullable = false, length = 30)
     private String source;
 
     @Column(nullable = false, length = 8)
