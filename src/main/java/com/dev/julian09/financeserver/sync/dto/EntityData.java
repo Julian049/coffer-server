@@ -63,6 +63,10 @@ public sealed interface EntityData {
                                 @Pattern(regexp = "^[0-9]{4}$") String lastDigits) implements EntityData {
     }
 
+    record MailRuleData(@NotNull @Pattern(regexp = "^[A-Z][A-Z0-9_]{1,29}$") String source,
+                        @Pattern(regexp = "^[0-9]{4}$") String lastDigits, @NotNull UUID accountId) implements EntityData {
+    }
+
     record TagData(@NotBlank @Size(max = 50) String name, boolean pinned, @Pattern(regexp = "^#[0-9A-F]{6}$") String color)
             implements EntityData {
     }

@@ -580,7 +580,7 @@ components:
     EntityName:
       type: string
       enum: [settings, account, creditCardDetails, loanDetails, category, tag, transaction,
-             deferredPurchase, installment, recurringExpense, changeLog, transactionDraft]
+             deferredPurchase, installment, recurringExpense, changeLog, transactionDraft, mailRule]
     ChangeBase:
       type: object
       required: [entity, id, createdAt, updatedAt, deletedAt, data]
@@ -611,6 +611,7 @@ components:
         - $ref: '#/components/schemas/RecurringExpenseChange'
         - $ref: '#/components/schemas/ChangeLogChange'
         - $ref: '#/components/schemas/TransactionDraftChange'
+        - $ref: '#/components/schemas/MailRuleChange'
       discriminator:
         propertyName: entity
         mapping:
@@ -626,6 +627,7 @@ components:
           recurringExpense: '#/components/schemas/RecurringExpenseChange'
           changeLog: '#/components/schemas/ChangeLogChange'
           transactionDraft: '#/components/schemas/TransactionDraftChange'
+          mailRule: '#/components/schemas/MailRuleChange'
     SettingsChange:
       allOf:
         - $ref: '#/components/schemas/ChangeBase'
@@ -710,6 +712,13 @@ components:
           properties:
             entity: { const: transactionDraft }
             data: { $ref: '#/components/schemas/TransactionDraftData' }
+    MailRuleChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: mailRule }
+            data: { $ref: '#/components/schemas/MailRuleData' }
 
     PushRequest:
       type: object
@@ -904,6 +913,16 @@ components:
         occurredAt: { $ref: '#/components/schemas/Instant' }
         merchant: { type: [string, 'null'], maxLength: 200 }
         lastDigits: { type: [string, 'null'], pattern: '^[0-9]{4}$' }
+    MailRuleData:
+      type: object
+      description: |
+        REQ-COR-11 (2.3.0). Lleva los borradores de un proveedor, o de un proveedor con esos últimos 4 dígitos,
+        a una cuenta; gana sobre la asociación automática por dígitos. La aplica el teléfono (ADR-0010).
+      required: [source, accountId]
+      properties:
+        source: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,29}$', examples: [RAPPICUENTA] }
+        lastDigits: { type: [string, 'null'], pattern: '^[0-9]{4}$' }
+        accountId: { $ref: '#/components/schemas/Uuid' }
     TagData:
       type: object
       required: [name, pinned]

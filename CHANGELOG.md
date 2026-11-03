@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Mail rules sync (#120): V18 creates `mail_rules` (a provider, optionally with its last 4 digits, sent to one account of the user) and the new `mailRule` entity travels through push and pull (`MailRuleSyncHandler`, API 2.3.0). The phone applies the rules (REQ-COR-11, ADR-0010).
 - Uber as an email provider (#121): `UberReader` reads a trip receipt (`Total COP …`, the first payment method `••••9533` and its time, month first and 12-hour) as an expense at «Uber» with source `UBER`. Tested with an anonymized copy of a real receipt.
 
 ### Changed
