@@ -121,6 +121,18 @@ class ReceiptParsersTest {
     }
 
     @Test
+    void moneyReceivedInRappiCuentaForwardedByHandKeepsItsRowsApartWithDashes() {
+        // 2.3.3: the PO's forward of 2026-11-03 (plain text of Gmail), the rows separated by lines of dashes
+        assertThat(PARSERS.parse("---------- Forwarded message ---------\nDe: RappiPay <noreply@rappipay.co>\nSubject: Tu dinero ya está disponible.\n"
+                + "¡Hola, Julian David!\n¡Recibiste una transferencia de dinero directamente en tu RappiCuenta! Esta transferencia se realizó "
+                + "a través de tus llaves.\nAquí los detalles:\nMonto recibido\n$100.000\n------------------------------\nBanco\nBancolombia\n"
+                + "------------------------------\nNro. de transacción\n3978141\n------------------------------\nFecha de la transacción\n"
+                + "03 de noviembre de 2026\n------------------------------\nHora de la transacción\n10:11 pm\n¿Necesitas ayuda?"))
+                .contains(new ParsedReceipt("RAPPICUENTA", "INCOME", new BigDecimal("100000.0000"),
+                        Instant.parse("2026-11-04T03:11:00Z"), "Bancolombia", null));
+    }
+
+    @Test
     void anHtmlRappiCardEmailKeepsItsLabelsAfterTheEntitiesAreDecoded() throws Exception {
         MimeBodyPart html = new MimeBodyPart();
         html.setContent("<style>td { color: red; }</style><div>Realizaste una compra con tu RappiCard.</div><div>Detalle de tu "
