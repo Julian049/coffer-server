@@ -34,7 +34,8 @@ public class RappiCuentaReader implements ReceiptReader {
 
     @Override
     public Optional<ParsedReceipt> read(String text) {
-        String flat = text.replaceAll("\\s+", " ");
+        // A mail forwarded by hand separates the rows with «------», which would sit between the labels and the values
+        String flat = text.replaceAll("-{3,}", " ").replaceAll("\\s+", " ");
         Matcher amount = AMOUNT.matcher(flat);
         Matcher date = DATE.matcher(flat);
         int month = date.find() ? MONTHS.indexOf(date.group(2).toLowerCase()) : -1;
