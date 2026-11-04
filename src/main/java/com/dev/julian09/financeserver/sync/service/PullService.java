@@ -217,6 +217,6 @@ public class PullService {
         return new EntityData.TransactionData(t.getType(), t.getAmount(), t.getOccurredAt(), t.getAccountId(),
                 t.getDestinationAccountId(), t.getCategoryId(), t.getTagId(), t.getNote(), t.getInstallments(), t.getPrincipal(),
                 t.getInterest(), t.getFees(), t.getInstallmentId(), t.getRecurringId(), t.getPaymentKind(), t.getConcept(),
-                t.getTagIds());
+                t.getTagIds(), t.getSourceMerchant(), t.getDraftId(), t.getSplitGroupId());
     }
 }

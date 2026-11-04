@@ -18,17 +18,21 @@ public class TransactionSyncHandler extends SyncHandler<TransactionData> {
     private static final String UPSERT = """
             INSERT INTO transactions AS t (id, user_id, type, amount, occurred_at, account_id, destination_account_id,
                 category_id, tag_id, tag_ids, note, installments, principal, interest, fees, installment_id, recurring_id,
-                payment_kind, concept, created_at, updated_at, deleted_at)
+                payment_kind, concept, source_merchant, draft_id, split_group_id, created_at, updated_at, deleted_at)
             VALUES (:id, :userId, :type, :amount, :occurredAt, :accountId, :destinationAccountId, :categoryId, :tagId, :tagIds,
                 :note, :installments, :principal, :interest, :fees, :installmentId, :recurringId, :paymentKind,
-                :concept, :createdAt, :updatedAt, :deletedAt)
+                :concept, :sourceMerchant, :draftId, :splitGroupId, :createdAt, :updatedAt, :deletedAt)
             ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, amount = EXCLUDED.amount,
                 occurred_at = EXCLUDED.occurred_at, account_id = EXCLUDED.account_id,
                 destination_account_id = EXCLUDED.destination_account_id, category_id = EXCLUDED.category_id,
                 tag_id = EXCLUDED.tag_id, tag_ids = EXCLUDED.tag_ids, note = EXCLUDED.note, installments = EXCLUDED.installments,
                 principal = EXCLUDED.principal, interest = EXCLUDED.interest, fees = EXCLUDED.fees,
                 installment_id = EXCLUDED.installment_id, recurring_id = EXCLUDED.recurring_id,
-                payment_kind = EXCLUDED.payment_kind, concept = EXCLUDED.concept, updated_at = EXCLUDED.updated_at, deleted_at = EXCLUDED.deleted_at
+                payment_kind = EXCLUDED.payment_kind, concept = EXCLUDED.concept,
+                -- a client older than 2.4 omits the origin: keep what is stored
+                source_merchant = COALESCE(EXCLUDED.source_merchant, t.source_merchant),
+                draft_id = COALESCE(EXCLUDED.draft_id, t.draft_id),
+                split_group_id = COALESCE(EXCLUDED.split_group_id, t.split_group_id), updated_at = EXCLUDED.updated_at, deleted_at = EXCLUDED.deleted_at
             WHERE t.user_id = EXCLUDED.user_id AND EXCLUDED.updated_at > t.updated_at
             RETURNING version
             """;
@@ -116,6 +120,9 @@ public class TransactionSyncHandler extends SyncHandler<TransactionData> {
                 .addValue("installmentId", d.installmentId())
                 .addValue("recurringId", d.recurringId())
                 .addValue("paymentKind", d.paymentKind())
-                .addValue("concept", d.concept()));
+                .addValue("concept", d.concept())
+                .addValue("sourceMerchant", d.sourceMerchant())
+                .addValue("draftId", d.draftId())
+                .addValue("splitGroupId", d.splitGroupId()));
     }
 }
