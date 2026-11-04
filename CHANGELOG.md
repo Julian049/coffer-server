@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- RappiCuenta money received, forwarded by hand: Gmail separates the rows with lines of dashes, which sat between «Fecha de la transacción» and «Hora de la transacción», so no reader understood the mail and it stayed `FAILED`. The reader now ignores runs of dashes.
+
 ## [2.3.0] - 2026-11-03
 
 ### Added
