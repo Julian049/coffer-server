@@ -976,6 +976,16 @@ components:
           type: [string, 'null']
           maxLength: 200
           description: Nota o concepto de una transferencia, aparte del título (`note`). 1.3.0, opcional.
+        sourceMerchant:
+          type: [string, 'null']
+          maxLength: 200
+          description: Comercio del correo del que salió el movimiento. 2.4.0, opcional; si falta se conserva el guardado.
+        draftId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+          description: Borrador del que se aplicó (marca «llegó por correo» y permite Deshacer). 2.4.0, opcional; si falta se conserva el guardado.
+        splitGroupId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+          description: Une las partes de un movimiento dividido. 2.4.0, opcional; si falta se conserva el guardado.
     DeferredPurchaseData:
       type: object
       required: [cardAccountId, purchaseTransactionId, amount, installmentsCount, rate, rateType,

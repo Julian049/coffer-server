@@ -70,6 +70,16 @@ public class Transaction extends SyncableEntity {
     @Column(name = "payment_kind", length = 12)
     private String paymentKind;
 
+    // 2.4: the email's merchant, the draft it was applied from and the group of a split (V19)
+    @Column(name = "source_merchant", length = 200)
+    private String sourceMerchant;
+
+    @Column(name = "draft_id")
+    private UUID draftId;
+
+    @Column(name = "split_group_id")
+    private UUID splitGroupId;
+
     protected Transaction() {
     }
 
@@ -106,4 +116,10 @@ public class Transaction extends SyncableEntity {
     public UUID getRecurringId() { return recurringId; }
 
     public String getPaymentKind() { return paymentKind; }
+
+    public String getSourceMerchant() { return sourceMerchant; }
+
+    public UUID getDraftId() { return draftId; }
+
+    public UUID getSplitGroupId() { return splitGroupId; }
 }

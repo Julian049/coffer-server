@@ -251,6 +251,9 @@ class PushServiceIT {
         transfer.put("destinationAccountId", cash.toString());
         transfer.put("note", "Retiro cajero");
         transfer.put("concept", "Para el efectivo de la semana");
+        UUID draft = UUID.randomUUID();
+        transfer.put("sourceMerchant", "CAJERO CALLE 80");
+        transfer.put("draftId", draft.toString());
         Map<String, Object> totalDebt = new LinkedHashMap<>(settings());
         totalDebt.put("netBalanceMode", "TOTAL_DEBT");
         push(change("account", account, T1, null, account("Bancolombia")), change("account", cash, T1, null, account("Efectivo")),
@@ -260,13 +263,21 @@ class PushServiceIT {
         // A v1.3.x app sends its settings without the mode (openapi 1.3.0): the stored one stays
         push(change("settings", userId, T2, null, settings()))
                 .andExpect(jsonPath("$.results[0].status").value("APPLIED"));
+        // A pre-2.4 app edits the movement without the origin (openapi 2.4.0): the stored origin stays
+        Map<String, Object> edited = new LinkedHashMap<>(transfer);
+        edited.remove("sourceMerchant");
+        edited.remove("draftId");
+        edited.put("note", "Retiro editado");
+        push(change("transaction", withdrawal, T2, null, edited)).andExpect(jsonPath("$.results[0].status").value("APPLIED"));
 
         JsonNode pulled = json.readTree(mvc.perform(get("/api/v1/sync/pull").param("since", "0").header("Authorization", bearer()))
                 .andReturn().getResponse().getContentAsString());
         Map<String, JsonNode> byEntity = new LinkedHashMap<>();
         pulled.get("changes").forEach(c -> byEntity.put(c.get("entity").asText(), c.get("data")));
         assertThat(byEntity.get("transaction").get("concept").asText()).isEqualTo("Para el efectivo de la semana");
-        assertThat(byEntity.get("transaction").get("note").asText()).isEqualTo("Retiro cajero");
+        assertThat(byEntity.get("transaction").get("note").asText()).isEqualTo("Retiro editado");
+        assertThat(byEntity.get("transaction").get("sourceMerchant").asText()).isEqualTo("CAJERO CALLE 80");
+        assertThat(byEntity.get("transaction").get("draftId").asText()).isEqualTo(draft.toString());
         assertThat(byEntity.get("settings").get("netBalanceMode").asText()).isEqualTo("CUSTOM");
     }
 
