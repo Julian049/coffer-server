@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-04
+
 ### Added
 - V19: `transactions.source_merchant`, `draft_id` and `split_group_id` (nullable); the sync accepts and returns them and a push without them keeps the stored values (2.4-01, #128).
 
