@@ -21,6 +21,7 @@ public class UberReader implements ReceiptReader {
     static final String SOURCE = "UBER";
     // Uber writes a narrow no-break space (U+202F) before AM/PM
     private static final String SPACE = "[\\s\\u202F]";
+    private static final Pattern TOTAL = Pattern.compile("Total" + SPACE + "+COP");
     private static final Pattern PAYMENT = Pattern.compile("[•*]{4}" + SPACE + "?(\\d{4})(?:" + SPACE + "*\\([^)]*\\))?" + SPACE
             + "*COP" + SPACE + "?([0-9][0-9.,]*)" + SPACE + "+(\\d{1,2})/(\\d{1,2})/(\\d{2})" + SPACE + "+(\\d{1,2}):(\\d{2})" + SPACE
             + "*([AP])M");
@@ -28,7 +29,8 @@ public class UberReader implements ReceiptReader {
     @Override
     public Optional<ParsedReceipt> read(String text) {
         Matcher m = PAYMENT.matcher(text);
-        if (!text.contains("Total COP") || !m.find()) {
+        // HTML-only receipts put «Total» and «COP» in separate cells, with a line break between them (#134)
+        if (!TOTAL.matcher(text).find() || !m.find()) {
             return Optional.empty();
         }
         int hour = Integer.parseInt(m.group(6)) % 12 + (m.group(8).equals("P") ? 12 : 0);
