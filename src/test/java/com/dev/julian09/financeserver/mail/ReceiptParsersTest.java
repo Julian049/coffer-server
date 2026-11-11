@@ -165,6 +165,15 @@ class ReceiptParsersTest {
     }
 
     @Test
+    void anHtmlOnlyUberReceiptWithTheTotalInSeparateCellsIsRead() {
+        // The PO's trip of 2026-11-11 (#134): the HTML cells leave a line break between «Total» and «COP»
+        String body = "Thanks for riding, Ana\nTotal\n COP 11,954\n\n Trip fare COP 11,516\n Payments\n"
+                + "Mastercard ••••9533 (Nu CC)\n COP 11,954 \n\n \n\n 11/11/26 1:45 PM\n Want to switch";
+        assertThat(PARSERS.parse(body)).contains(new ParsedReceipt("UBER", "EXPENSE", new BigDecimal("11954.0000"),
+                Instant.parse("2026-11-11T18:45:00Z"), "Uber", "9533"));
+    }
+
+    @Test
     void amountsReadBothSeparatorStyles() {
         assertThat(ReceiptParsers.amount("146,350.29")).isEqualByComparingTo("146350.29");
         assertThat(ReceiptParsers.amount("22.980")).isEqualByComparingTo("22980");
