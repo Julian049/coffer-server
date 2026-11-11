@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-11-11
+
+### Fixed
+
+- Uber receipts that arrive only as HTML: «Total» and «COP» sit in separate cells, so the text had a line break between them and the reader, which looked for «Total COP», left the mail `FAILED`. Any whitespace between the two words is now accepted (#134).
+
 ## [2.4.0] - 2026-11-04
 
 ### Added
