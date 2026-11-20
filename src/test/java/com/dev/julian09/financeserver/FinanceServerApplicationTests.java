@@ -40,6 +40,16 @@ class FinanceServerApplicationTests {
     }
 
     @Test
+    void livenessAnswersWithoutDetails() throws Exception {
+        // Render and the pinger use this one: it must exist outside Kubernetes and not check the DB
+        mvc.perform(get("/actuator/health/liveness").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.components").doesNotExist())
+                .andExpect(Contract.matches());
+    }
+
+    @Test
     void infoShowsThePomVersion() throws Exception {
         mvc.perform(get("/actuator/info"))
                 .andExpect(status().isOk())
