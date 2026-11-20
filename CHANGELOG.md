@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Render's health check and the keep-awake pinger now call `/actuator/health/liveness`, which checks only the app. `/actuator/health` also checks the database, so pinging it every few minutes kept the Neon compute awake around the clock and used up the monthly quota.
+
 ## [2.4.1] - 2026-11-11
 
 ### Fixed

@@ -364,7 +364,7 @@ paths:
       tags: [Ops]
       operationId: health
       summary: Estado del servicio
-      description: Sin detalles internos (RNF-07). Lo usan Render y el monitoreo.
+      description: Sin detalles internos (RNF-07). Revisa también la base de datos; Render y el pinger usan `/actuator/health/liveness`.
       security: []
       responses:
         '200':
@@ -376,6 +376,10 @@ paths:
                 required: [status]
                 properties:
                   status: { type: string, enum: [UP] }
+                  groups:
+                    type: array
+                    description: Nombres de los grupos de salud (`liveness`, `readiness`).
+                    items: { type: string }
         '503':
           description: Servicio no disponible.
           content:
@@ -385,6 +389,33 @@ paths:
                 required: [status]
                 properties:
                   status: { type: string, enum: [DOWN, OUT_OF_SERVICE] }
+
+  /actuator/health/liveness:
+    get:
+      tags: [Ops]
+      operationId: liveness
+      summary: El proceso está vivo
+      description: Solo revisa la aplicación, no la base de datos, para que el chequeo de Render y el pinger no mantengan despierta la base. Sin detalles internos (RNF-07).
+      security: []
+      responses:
+        '200':
+          description: Proceso vivo.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [UP] }
+        '503':
+          description: Proceso caído.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [DOWN] }
 
 components:
   securitySchemes:

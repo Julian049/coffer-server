@@ -55,5 +55,7 @@ management:
     health:
       # Contract (openapi.yml) and RNF-07: health answers only {"status": ...}
       show-details: never
+      # Liveness checks only the app, never the DB: Render's health check and the keep-awake
+      # pinger hit it every few minutes and must not keep the database compute awake
       probes:
-        enabled: false
+        enabled: true
