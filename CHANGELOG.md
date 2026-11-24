@@ -11,8 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Draft rules sync (#141): V20 creates `draft_rules` (a merchant, optionally with an exact amount and/or an account, registered with a title and a category; level `SURE`/`PROBABLE`, origin `USER`/`LEARNED`, enabled, position) and the new `draftRule` entity travels through push and pull (`DraftRuleSyncHandler`). The account and category must be the user's; the phone applies the rules (ADR-0010).
 
+## [2.4.2] - 2026-11-23
+
 ### Fixed
 
+- Bancolombia payments through Botón Bancolombia (PSE, «… desde producto *NNNN. DD/MM/AAAA HH:MM:SS») and by QR code («pagaste … por codigo QR desde tu cuenta … a la llave …») matched no pattern, so the mail stayed `FAILED` and no draft was created. Both are now read as expenses: the PSE biller is the merchant and, since the QR mail names none, the key stands in for it (#140).
 - Render's health check and the keep-awake pinger now call `/actuator/health/liveness`, which checks only the app. `/actuator/health` also checks the database, so pinging it every few minutes kept the Neon compute awake around the clock and used up the monthly quota.
 
 ## [2.4.1] - 2026-11-11
