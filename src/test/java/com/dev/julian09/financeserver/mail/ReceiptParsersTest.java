@@ -100,6 +100,24 @@ class ReceiptParsersTest {
     }
 
     @Test
+    void aBancolombiaPseTransferIsAnExpenseAtTheBiller() {
+        // #140: «desde producto» and a date without «el»; the double space before «desde» is as Bancolombia sends it
+        assertThat(PARSERS.parse("Bancolombia: Transferiste $48,250.00 por Boton Bancolombia a EMPRESA DE ACUEDUCTO DEMO SA  "
+                + "desde producto *4471. 05/11/2026 08:07:45 ¿Dudas? 018000931987."))
+                .contains(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", new BigDecimal("48250.0000"),
+                        Instant.parse("2026-11-05T13:07:45Z"), "EMPRESA DE ACUEDUCTO DEMO SA", "4471"));
+    }
+
+    @Test
+    void aBancolombiaQrPaymentIsAnExpenseToTheKey() {
+        // #140: no merchant in the mail, so the key stands in for it
+        assertThat(PARSERS.parse("Bancolombia: ANA PEREZ pagaste $27,800.00 por codigo QR desde tu cuenta *4471 a la llave "
+                + "0099112233 el 09/11/2026 a las 22:15. Con codigo QR es facil y de una. Dudas al 018000912345."))
+                .contains(new ParsedReceipt("BANCOLOMBIA", "EXPENSE", new BigDecimal("27800.0000"),
+                        Instant.parse("2026-11-10T03:15:00Z"), "0099112233", "4471"));
+    }
+
+    @Test
     void aBancolombiaTransferToAnAccountAndAPayrollPaymentAreRead() {
         assertThat(PARSERS.parse("Bancolombia: Transferiste $6,600.00 desde tu cuenta *2309 a la cuenta *3203104051 el 29/10/26 "
                 + "a las 11:50. ¿Dudas? Llamanos al 018000931987."))
