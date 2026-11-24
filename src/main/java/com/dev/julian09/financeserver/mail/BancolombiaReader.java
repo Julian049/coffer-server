@@ -24,6 +24,12 @@ public class BancolombiaReader implements ReceiptReader {
     static final String CREDIT_CARD = "BANCOLOMBIA_TC";
     private static final String DATE_TIME = "(\\d{2}/\\d{2}/\\d{2,4}) (?:a las )?(\\d{1,2}:\\d{2}(?::\\d{2})?)";
 
+    // «NOMBRE pagaste $19,400.00 por codigo QR desde tu cuenta *2309 a la llave 0077602829 el 12/11/2026 a las 20:51» (no merchant)
+    private static final Pattern QR = Pattern.compile(
+            "[Pp]agaste " + MONEY + " por c[oó]digo QR desde tu cuenta \\*?(\\d{4}) a la llave (.+?) el " + DATE_TIME);
+    // «Transferiste $60,990.00 por Boton Bancolombia a GAS NATURAL SA desde producto *2309. 17/11/2026 13:31:10» (PSE, no «el»)
+    private static final Pattern PSE = Pattern.compile(
+            "[Tt]ransferiste " + MONEY + " por Bot[oó]n Bancolombia a (.+?) desde producto \\*?(\\d{4})\\.? " + DATE_TIME);
     // «Pagaste $146,350.29 a Banco Caja Social S A Comerc desde tu producto 2309 el 26/10/2026 21:33:20»
     private static final Pattern PAID = Pattern.compile("Pagaste " + MONEY + " a (.+?) desde tu producto \\*?(\\d{4}) el " + DATE_TIME);
     // «recibiste una transferencia de JORGE ... por $3,000.00 en tu cuenta *2309 conectada a la llave xx el 26/10/26 a las 12:53»
@@ -44,7 +50,16 @@ public class BancolombiaReader implements ReceiptReader {
     @Override
     public Optional<ParsedReceipt> read(String text) {
         String flat = text.replaceAll("\\s+", " ");
-        Matcher m = PAID.matcher(flat);
+        Matcher m = QR.matcher(flat);
+        if (m.find()) {
+            // The mail names no merchant: the key it went to, like SENT without a name
+            return expense(ACCOUNT, m.group(1), m.group(4), m.group(5), m.group(3), m.group(2));
+        }
+        m = PSE.matcher(flat);
+        if (m.find()) {
+            return expense(ACCOUNT, m.group(1), m.group(4), m.group(5), m.group(2), m.group(3));
+        }
+        m = PAID.matcher(flat);
         if (m.find()) {
             return expense(ACCOUNT, m.group(1), m.group(4), m.group(5), m.group(2), m.group(3));
         }
