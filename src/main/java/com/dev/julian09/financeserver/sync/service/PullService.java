@@ -25,6 +25,7 @@ import com.dev.julian09.financeserver.ledger.repo.CategoryRepository;
 import com.dev.julian09.financeserver.ledger.repo.ChangeLogRepository;
 import com.dev.julian09.financeserver.ledger.repo.CreditCardDetailsRepository;
 import com.dev.julian09.financeserver.ledger.repo.DeferredPurchaseRepository;
+import com.dev.julian09.financeserver.ledger.repo.DraftRuleRepository;
 import com.dev.julian09.financeserver.ledger.repo.InstallmentRepository;
 import com.dev.julian09.financeserver.ledger.repo.LoanDetailsRepository;
 import com.dev.julian09.financeserver.ledger.repo.RecurringExpenseRepository;
@@ -66,6 +67,7 @@ public class PullService {
             UNION ALL SELECT 'changeLog', id, version FROM change_log WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'transactionDraft', id, version FROM transaction_drafts WHERE user_id = :user AND version > :since
             UNION ALL SELECT 'mailRule', id, version FROM mail_rules WHERE user_id = :user AND version > :since
+            UNION ALL SELECT 'draftRule', id, version FROM draft_rules WHERE user_id = :user AND version > :since
             """;
 
     private record Row(String entity, UUID id, long version) {
@@ -85,13 +87,15 @@ public class PullService {
     private final LoanDetailsRepository loans;
     private final TransactionDraftRepository drafts;
     private final MailRuleRepository mailRules;
+    private final DraftRuleRepository draftRules;
     private final JsonMapper json;
 
     public PullService(NamedParameterJdbcTemplate jdbc, UserSettingsRepository settings, AccountRepository accounts,
                        CategoryRepository categories, TagRepository tags, TransactionRepository transactions,
                        ChangeLogRepository changeLog, RecurringExpenseRepository recurring, CreditCardDetailsRepository cards,
                        DeferredPurchaseRepository deferred, InstallmentRepository installments, LoanDetailsRepository loans,
-                       TransactionDraftRepository drafts, MailRuleRepository mailRules, JsonMapper json) {
+                       TransactionDraftRepository drafts, MailRuleRepository mailRules, DraftRuleRepository draftRules,
+                       JsonMapper json) {
         this.jdbc = jdbc;
         this.settings = settings;
         this.accounts = accounts;
@@ -106,6 +110,7 @@ public class PullService {
         this.loans = loans;
         this.drafts = drafts;
         this.mailRules = mailRules;
+        this.draftRules = draftRules;
         this.json = json;
     }
 
@@ -136,6 +141,9 @@ public class PullService {
         load(idsByEntity, "transactionDraft", drafts, d -> new EntityData.TransactionDraftData(d.getSource(), d.getType(), d.getAmount(),
                 d.getOccurredAt(), d.getMerchant(), d.getLastDigits()), loaded);
         load(idsByEntity, "mailRule", mailRules, r -> new EntityData.MailRuleData(r.getSource(), r.getLastDigits(), r.getAccountId()), loaded);
+        load(idsByEntity, "draftRule", draftRules, r -> new EntityData.DraftRuleData(r.getMerchant(), r.getMerchantKey(), r.getAmount(),
+                r.getAccountId(), r.getNote(), r.getCategoryId(), r.getLevel(), r.getOrigin(), r.isEnabled(), r.getLearnedSince(),
+                r.getPosition()), loaded);
 
         List<PulledChange> changes = new ArrayList<>(page.size());
         page.forEach(row -> changes.add(loaded.get(row.entity() + row.id())));

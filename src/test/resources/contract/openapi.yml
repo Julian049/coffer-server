@@ -611,7 +611,8 @@ components:
     EntityName:
       type: string
       enum: [settings, account, creditCardDetails, loanDetails, category, tag, transaction,
-             deferredPurchase, installment, recurringExpense, changeLog, transactionDraft, mailRule]
+             deferredPurchase, installment, recurringExpense, changeLog, transactionDraft, mailRule,
+             draftRule]
     ChangeBase:
       type: object
       required: [entity, id, createdAt, updatedAt, deletedAt, data]
@@ -643,6 +644,7 @@ components:
         - $ref: '#/components/schemas/ChangeLogChange'
         - $ref: '#/components/schemas/TransactionDraftChange'
         - $ref: '#/components/schemas/MailRuleChange'
+        - $ref: '#/components/schemas/DraftRuleChange'
       discriminator:
         propertyName: entity
         mapping:
@@ -659,6 +661,7 @@ components:
           changeLog: '#/components/schemas/ChangeLogChange'
           transactionDraft: '#/components/schemas/TransactionDraftChange'
           mailRule: '#/components/schemas/MailRuleChange'
+          draftRule: '#/components/schemas/DraftRuleChange'
     SettingsChange:
       allOf:
         - $ref: '#/components/schemas/ChangeBase'
@@ -750,6 +753,13 @@ components:
           properties:
             entity: { const: mailRule }
             data: { $ref: '#/components/schemas/MailRuleData' }
+    DraftRuleChange:
+      allOf:
+        - $ref: '#/components/schemas/ChangeBase'
+        - type: object
+          properties:
+            entity: { const: draftRule }
+            data: { $ref: '#/components/schemas/DraftRuleData' }
 
     PushRequest:
       type: object
@@ -954,6 +964,31 @@ components:
         source: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,29}$', examples: [RAPPICUENTA] }
         lastDigits: { type: [string, 'null'], pattern: '^[0-9]{4}$' }
         accountId: { $ref: '#/components/schemas/Uuid' }
+    DraftRuleData:
+      type: object
+      description: |
+        2.5.0. Registra los borradores de un comercio (y, si se indican, de ese monto exacto o esa cuenta) con un
+        título y una categoría. Los crea el usuario o los aprende el teléfono, que es quien los aplica (ADR-0010).
+      required: [merchant, merchantKey, note, categoryId, level, origin, enabled, position]
+      properties:
+        merchant: { type: string, minLength: 1, maxLength: 100, examples: [UBER RIDES] }
+        merchantKey:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: El comercio normalizado por el teléfono; es con lo que se compara.
+        amount:
+          oneOf: [{ $ref: '#/components/schemas/PositiveAmount' }, { type: 'null' }]
+        accountId:
+          oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }]
+        note: { type: string, minLength: 1, maxLength: 500, description: El título que recibe el movimiento. }
+        categoryId: { $ref: '#/components/schemas/Uuid' }
+        level: { type: string, enum: [SURE, PROBABLE] }
+        origin: { type: string, enum: [USER, LEARNED] }
+        enabled: { type: boolean }
+        learnedSince:
+          oneOf: [{ $ref: '#/components/schemas/Instant' }, { type: 'null' }]
+        position: { type: integer, minimum: 0, description: Orden en la lista; menor = más prioridad. }
     TagData:
       type: object
       required: [name, pinned]
