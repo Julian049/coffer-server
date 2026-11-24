@@ -67,6 +67,15 @@ public sealed interface EntityData {
                         @Pattern(regexp = "^[0-9]{4}$") String lastDigits, @NotNull UUID accountId) implements EntityData {
     }
 
+    /** 2.5: merchant (and maybe amount and/or account) → title and category; the phone applies it (ADR-0010). */
+    record DraftRuleData(@NotBlank @Size(max = 100) String merchant, @NotBlank @Size(max = 100) String merchantKey,
+                         @DecimalMin(value = "0", inclusive = false) @Digits(integer = 15, fraction = 4) BigDecimal amount,
+                         UUID accountId, @NotBlank @Size(max = 500) String note, @NotNull UUID categoryId,
+                         @NotNull @Pattern(regexp = "SURE|PROBABLE") String level,
+                         @NotNull @Pattern(regexp = "USER|LEARNED") String origin, boolean enabled, Instant learnedSince,
+                         @Min(0) int position) implements EntityData {
+    }
+
     record TagData(@NotBlank @Size(max = 50) String name, boolean pinned, @Pattern(regexp = "^#[0-9A-F]{6}$") String color)
             implements EntityData {
     }
