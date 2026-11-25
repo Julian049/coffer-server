@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-25
+
+### Added
+
+- Draft rules sync (#141): V20 creates `draft_rules` (a merchant, optionally with an exact amount and/or an account, registered with a title and a category; level `SURE`/`PROBABLE`, origin `USER`/`LEARNED`, enabled, position) and the new `draftRule` entity travels through push and pull (`DraftRuleSyncHandler`). The account and category must be the user's; the phone applies the rules (ADR-0010).
+
 ## [2.4.2] - 2026-11-23
 
 ### Fixed
